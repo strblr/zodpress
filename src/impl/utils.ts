@@ -28,6 +28,7 @@ export function isEmpty(obj?: object): obj is object {
 }
 
 export function getParamsSchema(path: string) {
+  // TODO: handle {/id} notation
   const params = path.split("/").filter(p => p.startsWith(":"));
   return params.length === 0
     ? undefined

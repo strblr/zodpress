@@ -1,6 +1,6 @@
 import express from "express";
 import * as swaggerUi from "swagger-ui-express";
-import { texpress, z } from "@/index";
+import { texpress, z } from "../index";
 
 const todoSchema = z
   .object({
