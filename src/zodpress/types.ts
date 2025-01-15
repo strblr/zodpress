@@ -2,104 +2,82 @@ import type * as core from "express-serve-static-core";
 import type { z, ZodIssue } from "zod";
 import type {
   OpenApiGeneratorV3,
-  OpenAPIRegistry
+  OpenAPIRegistry,
+  RouteConfig
 } from "@asteasolutions/zod-to-openapi";
 
 // Contract
 
-export type AnyPath = `/${string}`;
-
 export type AnyMethod = "get" | "post" | "put" | "patch" | "delete";
 
 export type AnyContract = {
-  [path: AnyPath]: {
+  [path: string]: {
     [method in AnyMethod]?: AnyConfig;
   };
 };
 
-export type AnyConfig = {
+export interface AnyConfig {
   summary?: string;
-  tags?: string[];
+  openapi?: Partial<RouteConfig>;
   query?: z.AnyZodObject;
   body?: z.ZodTypeAny;
   contentType?: string;
   responses: {
     [status: number]: z.ZodTypeAny;
   };
-};
+}
 
 // Express & Router
 
-export type TypedExpress<Contract extends AnyContract> = core.Express &
-  TypedExtensionExpress<Contract>;
+export interface ZodpressApp<Contract extends AnyContract>
+  extends core.Express,
+    Zodpress<Contract, ZodpressApp<Contract>> {}
 
-export type TypedRouter<Contract extends AnyContract> = core.Router &
-  TypedExtensionRouter<Contract>;
+export interface ZodpressRouter<Contract extends AnyContract>
+  extends core.Router,
+    Zodpress<Contract, ZodpressRouter<Contract>> {}
 
-type TypedExtensionCommon<Contract extends AnyContract> = {
+export interface ZodpressRoute<
+  Contract extends AnyContract,
+  _Path extends keyof Contract & string
+> extends core.IRoute {}
+
+export interface Zodpress<Contract extends AnyContract, ReturnType = any> {
   _contract: Contract;
-  _tree: Map<string, Set<TypedRouter<AnyContract>>>;
   register(registry: OpenAPIRegistry, options?: RegistryOptions): void;
   openapi(config: OpenAPIObjectConfig): OpenAPIObject;
-};
-
-type TypedExtensionExpress<Contract extends AnyContract> =
-  TypedExtensionCommon<Contract> & {
-    t: {
-      get<Path extends PathForMethod<Contract, "get"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "get", Path>[]
-      ): TypedExpress<Contract>;
-      post<Path extends PathForMethod<Contract, "post"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "post", Path>[]
-      ): TypedExpress<Contract>;
-      put<Path extends PathForMethod<Contract, "put"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "put", Path>[]
-      ): TypedExpress<Contract>;
-      patch<Path extends PathForMethod<Contract, "patch"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "patch", Path>[]
-      ): TypedExpress<Contract>;
-      delete<Path extends PathForMethod<Contract, "delete"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "delete", Path>[]
-      ): TypedExpress<Contract>;
-    };
+  z: {
+    get<Path extends PathForMethod<Contract, "get"> & string>(
+      path: Path,
+      ...handlers: RequestHandler<Contract, "get", Path>[]
+    ): ReturnType;
+    post<Path extends PathForMethod<Contract, "post"> & string>(
+      path: Path,
+      ...handlers: RequestHandler<Contract, "post", Path>[]
+    ): ReturnType;
+    put<Path extends PathForMethod<Contract, "put"> & string>(
+      path: Path,
+      ...handlers: RequestHandler<Contract, "put", Path>[]
+    ): ReturnType;
+    patch<Path extends PathForMethod<Contract, "patch"> & string>(
+      path: Path,
+      ...handlers: RequestHandler<Contract, "patch", Path>[]
+    ): ReturnType;
+    delete<Path extends PathForMethod<Contract, "delete"> & string>(
+      path: Path,
+      ...handlers: RequestHandler<Contract, "delete", Path>[]
+    ): ReturnType;
   };
-
-type TypedExtensionRouter<Contract extends AnyContract> =
-  TypedExtensionCommon<Contract> & {
-    t: {
-      get<Path extends PathForMethod<Contract, "get"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "get", Path>[]
-      ): TypedRouter<Contract>;
-      post<Path extends PathForMethod<Contract, "post"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "post", Path>[]
-      ): TypedRouter<Contract>;
-      put<Path extends PathForMethod<Contract, "put"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "put", Path>[]
-      ): TypedRouter<Contract>;
-      patch<Path extends PathForMethod<Contract, "patch"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "patch", Path>[]
-      ): TypedRouter<Contract>;
-      delete<Path extends PathForMethod<Contract, "delete"> & AnyPath>(
-        path: Path,
-        ...handlers: RequestHandler<Contract, "delete", Path>[]
-      ): TypedRouter<Contract>;
-    };
-  };
+}
 
 // OpenAPI
 
 export type OpenAPIObject = ReturnType<OpenApiGeneratorV3["generateDocument"]>;
 
-export type RegistryOptions = { prefix?: string };
+export interface RegistryOptions {
+  prefix?: string;
+  tags?: string | string[];
+}
 
 export type OpenAPIObjectConfig = Parameters<
   OpenApiGeneratorV3["generateDocument"]
@@ -111,7 +89,7 @@ export type OpenAPIObjectConfig = Parameters<
 export type RequestHandler<
   Contract extends AnyContract,
   Method extends AnyMethod,
-  Path extends keyof Contract & AnyPath
+  Path extends keyof Contract & string
 > = BaseRequestHandler<
   PathParameters<Path>,
   RequestQuery<Contract, Method, Path>,
@@ -168,14 +146,14 @@ type GetPathParameter<Str extends string> = RemoveTail<
   `.${string}`
 >;
 
-type ParamsDictionary = { [param: string]: string };
+type ParamsDictionary = never;
 
 // Request query
 
 export type RequestQuery<
   Contract extends AnyContract,
   Method extends AnyMethod,
-  Path extends keyof Contract & AnyPath
+  Path extends keyof Contract & string
 > = Contract[Path][Method] extends AnyConfig
   ? Contract[Path][Method]["query"] extends z.AnyZodObject
     ? z.infer<Contract[Path][Method]["query"]>
@@ -187,7 +165,7 @@ export type RequestQuery<
 export type RequestBody<
   Contract extends AnyContract,
   Method extends AnyMethod,
-  Path extends keyof Contract & AnyPath
+  Path extends keyof Contract & string
 > = Contract[Path][Method] extends AnyConfig
   ? Contract[Path][Method]["body"] extends z.ZodTypeAny
     ? z.infer<Contract[Path][Method]["body"]>
@@ -199,7 +177,7 @@ export type RequestBody<
 export type ResponseStatusCode<
   Contract extends AnyContract,
   Method extends AnyMethod,
-  Path extends keyof Contract & AnyPath
+  Path extends keyof Contract & string
 > = Contract[Path][Method] extends AnyConfig
   ? keyof Contract[Path][Method]["responses"] & number
   : never;
@@ -209,7 +187,7 @@ export type ResponseStatusCode<
 export type ResponseBody<
   Contract extends AnyContract,
   Method extends AnyMethod,
-  Path extends keyof Contract & AnyPath
+  Path extends keyof Contract & string
 > = Contract[Path][Method] extends AnyConfig
   ? Contract[Path][Method]["responses"] extends { [status: number]: infer R }
     ? R extends z.ZodTypeAny
@@ -220,27 +198,26 @@ export type ResponseBody<
 
 // Inference
 
-export type inferContract<Router extends TypedRouter<AnyContract>> =
-  Router["_contract"];
+export type inferContract<Router extends Zodpress<{}>> = Router["_contract"];
 
 export type inferHandler<
-  Router extends TypedRouter<AnyContract>,
+  Router extends Zodpress<{}>,
   Method extends AnyMethod,
-  Path extends keyof inferContract<Router> & AnyPath
+  Path extends keyof inferContract<Router> & string
 > = RequestHandler<inferContract<Router>, Method, Path>;
 
 // Other
 
-export type ValidationErrorBody = {
+export interface ValidationError {
   queryErrors?: ZodIssue[];
   bodyErrors?: ZodIssue[];
-};
+}
 
 export type PathForMethod<
   Contract extends AnyContract,
   Method extends AnyMethod
 > = {
-  [Path in keyof Contract]: Contract[Path & AnyPath][Method] extends AnyConfig
+  [Path in keyof Contract]: Contract[Path & string][Method] extends AnyConfig
     ? Path
     : never;
 }[keyof Contract];

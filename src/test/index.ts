@@ -1,6 +1,7 @@
 import express from "express";
 import * as swaggerUi from "swagger-ui-express";
-import { texpress, z } from "../index";
+import { inferHandler, zodpress } from "../zodpress";
+import { z } from "../zod";
 
 const todoSchema = z
   .object({
@@ -15,11 +16,10 @@ const createTodoSchema = z
   })
   .openapi("CreateTodo");
 
-const contract = texpress.contract({
+const contract1 = zodpress.contract({
   "/todos/:id": {
     get: {
       summary: "Get a todo",
-      tags: ["todos"],
       responses: {
         200: todoSchema,
         404: z.string()
@@ -27,18 +27,19 @@ const contract = texpress.contract({
     },
     delete: {
       summary: "Delete a todo",
-      tags: ["todos"],
       responses: {
-        200: z.string()
+        204: z.void() // Empty response body
       }
     }
-  },
+  }
+});
+
+const contract2 = zodpress.contract({
   "/todos": {
     get: {
       summary: "Get all todos",
-      tags: ["todos2"],
       query: z.object({
-        page: z.string().nonempty().optional().describe("Page number"),
+        page: z.string().min(2).describe("Page number"),
         limit: z.coerce.number()
       }),
       responses: {
@@ -47,7 +48,6 @@ const contract = texpress.contract({
     },
     post: {
       summary: "Create a todo",
-      tags: ["todos2"],
       body: createTodoSchema,
       responses: {
         200: todoSchema
@@ -56,16 +56,34 @@ const contract = texpress.contract({
   }
 });
 
-const router = texpress.Router(contract);
+const app = zodpress({});
 
-router.t.get("/todos/:id", (req, res) => {
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const r1 = zodpress.Router(contract1);
+const r2 = zodpress.Router(contract2);
+
+app.use(r1).use(r2);
+
+const getTodoHandler: inferHandler<typeof r1, "get", "/todos/:id"> = (
+  _req,
+  res
+) => {
   res.status(200).send({
     id: "1",
     title: "Todo"
   });
+};
+
+r1.z.get("/todos/:id", getTodoHandler);
+
+r1.z.delete("/todos/:id", (_req, res) => {
+  res.status(204).send();
 });
 
-router.t.get("/todos", (req, res) => {
+r2.z.get("/todos", (_req, res) => {
+  console.log(typeof _req.query.limit);
   res.status(200).send([
     {
       id: "1",
@@ -74,7 +92,7 @@ router.t.get("/todos", (req, res) => {
   ]);
 });
 
-router.t.post("/todos", (req, res) => {
+r2.z.post("/todos", (req, res) => {
   const p = req.params;
   const b = req.body;
   const q = req.query;
@@ -87,20 +105,10 @@ router.t.post("/todos", (req, res) => {
   });
 });
 
-router.get("/bar", (req, res, next) => {
+r2.get("/bar", (_req, res) => {
+  // Regular weakly typed express
   res.send("Hello World");
 });
-
-const router2 = texpress.Router({});
-router2.use("/v2", router);
-
-const router3 = texpress.Router({});
-router3.use("/", router2);
-
-const app = texpress({});
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use("/api", router3);
 
 const openApiDocument = app.openapi({
   openapi: "3.0.0",
@@ -113,6 +121,12 @@ const openApiDocument = app.openapi({
 });
 
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+
+app.use((err: any, _req: any, res: any, _next: any) => {
+  res.status(400).send(err);
+});
+
+// console.log(JSON.stringify(openApiDocument.paths, null, 2));
 
 app.listen(3000, () => {
   console.log("Server is running on port 3000");

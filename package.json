@@ -1,19 +1,29 @@
 {
-  "name": "texpress",
-  "version": "1.0.0",
+  "name": "zodpress",
+  "version": "0.0.2",
   "author": "strblr",
   "license": "MIT",
   "description": "",
-  "homepage": "https://github.com/strblr/texpress",
+  "homepage": "https://github.com/strblr/zodpress",
   "bugs": {
-    "url": "https://github.com/strblr/texpress/issues"
+    "url": "https://github.com/strblr/zodpress/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/strblr/texpress.git"
+    "url": "https://github.com/strblr/zodpress.git"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/zodpress/index.js",
+  "types": "dist/zodpress/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/zodpress/index.d.ts",
+      "default": "./dist/zodpress/index.js"
+    },
+    "./zod": {
+      "types": "./dist/zod/index.d.ts",
+      "default": "./dist/zod/index.js"
+    }
+  },
   "scripts": {
     "dev": "tsx watch src/test/index.ts",
     "build": "tsc",
@@ -21,14 +31,20 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.0",
-    "express": "^4.21.2",
-    "zod": "^3.24.1"
+    "lodash.merge": "^4.6.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/lodash.merge": "^4.6.9",
     "@types/swagger-ui-express": "^4.1.7",
+    "express": "^4.21.2",
     "swagger-ui-express": "^5.0.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "zod": "^3.24.1"
+  },
+  "peerDependencies": {
+    "express": "^4.21.2",
+    "zod": "^3.24.1"
   }
 }

@@ -1,84 +1,82 @@
-import express from "express";
-import type * as core from "express-serve-static-core";
+import express, { type RouterOptions } from "express";
+import { z } from "zod";
 import {
   OpenApiGeneratorV3,
-  OpenAPIRegistry
+  OpenAPIRegistry,
+  type RouteConfig
 } from "@asteasolutions/zod-to-openapi";
-import { z } from "./z";
+import merge from "lodash.merge";
 import {
   addToSet,
-  concatPaths,
-  isTypedRouter,
+  isZodpress,
   isEmpty,
-  getParamsSchema
+  getParamsSchema,
+  openApiPath
 } from "./utils";
 import type {
-  AnyPath,
   AnyContract,
   AnyMethod,
+  AnyConfig,
   RequestBody,
   RequestQuery,
   RequestHandler,
-  TypedExpress,
-  TypedRouter,
-  ValidationErrorBody,
-  AnyConfig,
-  RegistryOptions
+  ZodpressApp,
+  ZodpressRouter,
+  ValidationError,
+  RegistryOptions,
+  Zodpress
 } from "./types";
 
-export function texpress<const Contract extends AnyContract>(
+export function zodpress<const Contract extends AnyContract>(
   contract: Contract = {} as Contract
 ) {
-  const app = express() as TypedExpress<Contract>;
-  decorate(contract, app);
+  const app = express() as ZodpressApp<Contract>;
+  extend(app, contract);
   return app;
 }
 
-texpress.Router = <const Contract extends AnyContract>(
-  contract: Contract = {} as Contract
+zodpress.Router = <const Contract extends AnyContract>(
+  contract: Contract = {} as Contract,
+  options?: RouterOptions
 ) => {
-  const router = express.Router() as TypedRouter<Contract>;
-  decorate(contract, router);
+  const router = express.Router(options) as ZodpressRouter<Contract>;
+  extend(router, contract);
   return router;
 };
 
-texpress.contract = <const Contract extends AnyContract>(
+zodpress.contract = <const Contract extends AnyContract>(
   contract: Contract
 ) => {
   return contract;
 };
 
-function decorate<Contract extends AnyContract>(
-  contract: Contract,
-  router: TypedRouter<Contract>
+function extend<Contract extends AnyContract>(
+  router: ZodpressRouter<Contract>,
+  contract: Contract
 ) {
-  const tree = new Map<string, Set<TypedRouter<AnyContract>>>();
+  const tree = new Map<string, Set<Zodpress<{}>>>();
   const previousUse = router.use.bind(router);
 
-  const registerChildren = <F extends Function>(
-    path: string,
-    handlers: F[]
-  ) => {
-    const routers = handlers.filter(h => isTypedRouter(h));
+  const registerNodes = <F extends Function>(path: string, handlers: F[]) => {
+    const routers = handlers.filter(h => isZodpress(h));
     tree.set(path, addToSet(tree.get(path), routers));
     return handlers;
   };
 
   router._contract = contract;
-  router._tree = tree;
 
-  router.use = (...[path, ...handlers]: any[]) => {
+  router.use = (path: any, ...handlers: any[]) => {
     if (typeof path === "string") {
-      registerChildren(path, handlers);
+      registerNodes(path, handlers);
     } else {
-      registerChildren("", [path, ...handlers]);
+      registerNodes("/", [path, ...handlers]);
     }
     return previousUse(path, ...handlers);
   };
 
-  router.openapi = ({ prefix, ...config }) => {
+  router.openapi = ({ prefix, tags, ...config }) => {
     const registry = new OpenAPIRegistry();
-    router.register(registry, { prefix });
+    router.register(registry, { prefix, tags });
     return new OpenApiGeneratorV3(registry.definitions).generateDocument(
       config
     );
@@ -88,58 +86,52 @@ function decorate<Contract extends AnyContract>(
     for (const [path, configs] of Object.entries(contract)) {
       for (const [method, config] of Object.entries(configs)) {
         if (!config) continue;
-        register(
-          method as AnyMethod,
-          path as AnyPath,
-          config,
-          registry,
-          options
-        );
+        register(method as AnyMethod, path, config, registry, options);
       }
     }
-    for (const [path, routers] of [...tree]) {
+    for (const [path, routers] of tree) {
       for (const router of routers) {
         router.register(registry, {
-          prefix: concatPaths(options?.prefix, path)
+          prefix: `${options?.prefix ?? ""}/${path}`
         });
       }
     }
   };
 
-  router.t = {
+  router.z = {
     get: (path, ...handlers) => {
       return router.get(
         path,
         validate(contract, path, "get"),
-        ...registerChildren(path, handlers)
+        ...registerNodes(path, handlers)
       );
     },
     post: (path, ...handlers) => {
       return router.post(
         path,
         validate(contract, path, "post"),
-        ...registerChildren(path, handlers)
+        ...registerNodes(path, handlers)
       );
     },
     put: (path, ...handlers) => {
       return router.put(
         path,
         validate(contract, path, "put"),
-        ...registerChildren(path, handlers)
+        ...registerNodes(path, handlers)
       );
     },
     patch: (path, ...handlers) => {
       return router.patch(
         path,
         validate(contract, path, "patch"),
-        ...registerChildren(path, handlers)
+        ...registerNodes(path, handlers)
       );
     },
     delete: (path, ...handlers) => {
       return router.delete(
         path,
         validate(contract, path, "delete"),
-        ...registerChildren(path, handlers)
+        ...registerNodes(path, handlers)
       );
     }
   };
@@ -147,7 +139,7 @@ function decorate<Contract extends AnyContract>(
 
 function validate<
   Contract extends AnyContract,
-  Path extends keyof Contract & AnyPath,
+  Path extends keyof Contract & string,
   Method extends AnyMethod
 >(
   contract: Contract,
@@ -155,10 +147,10 @@ function validate<
   method: Method
 ): RequestHandler<Contract, Method, Path> {
   const config = contract[path]?.[method];
-  return (req, res, next) => {
+  return (req, _res, next) => {
     if (config) {
       const { query, body, contentType = "application/json" } = config;
-      const errors: ValidationErrorBody = {};
+      const errors: ValidationError = {};
 
       if (query) {
         const result = query.safeParse(req.query);
@@ -177,7 +169,7 @@ function validate<
         }
       }
       if (!isEmpty(errors)) {
-        (res as core.Response).status(400).json(errors);
+        next(errors);
         return;
       }
     }
@@ -187,12 +179,13 @@ function validate<
 
 function register(
   method: AnyMethod,
-  path: AnyPath,
+  path: string,
   config: AnyConfig,
   registry: OpenAPIRegistry,
   options?: RegistryOptions
 ) {
-  const fullPath = concatPaths(options?.prefix, path);
+  const fullPath = openApiPath(options?.prefix, path);
+
   const body =
     config.body || config.contentType
       ? {
@@ -209,23 +202,28 @@ function register(
       status,
       {
         description: response.description ?? "",
-        content: {
-          "application/json": { schema: response }
-        }
+        content:
+          response instanceof z.ZodVoid
+            ? undefined
+            : { "application/json": { schema: response } }
       }
     ])
   );
 
-  registry.registerPath({
-    method: method,
-    path: fullPath,
-    summary: config.summary,
-    tags: config.tags,
-    request: {
-      params: getParamsSchema(fullPath),
-      query: config.query,
-      body
+  const routeConfig: RouteConfig = merge(
+    {
+      method,
+      path: fullPath,
+      summary: config.summary,
+      request: {
+        params: getParamsSchema(fullPath),
+        query: config.query,
+        body
+      },
+      responses
     },
-    responses
-  });
+    config.openapi
+  );
+
+  registry.registerPath(routeConfig);
 }

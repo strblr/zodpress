@@ -1,3 +1,5 @@
-# texpress
+# zodpress
 
-Type-safe Express.js
+Type-safe Express.js with Zod.
+
+(Under development)
