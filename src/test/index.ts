@@ -17,15 +17,22 @@ const createTodoSchema = z
   .openapi("CreateTodo");
 
 const contract1 = zodpress.contract({
-  "/todos/:id": {
-    get: {
+  tags: "Contract 1",
+  get: {
+    "/todos/:id": {
       summary: "Get a todo",
+      params: z.object({
+        id: z.coerce.number().describe("The ID of the todo")
+      }),
       responses: {
         200: todoSchema,
         404: z.string()
       }
     },
-    delete: {
+    "/test": {}
+  },
+  delete: {
+    "/todos/:id": {
       summary: "Delete a todo",
       responses: {
         204: z.void() // Empty response body
@@ -35,8 +42,9 @@ const contract1 = zodpress.contract({
 });
 
 const contract2 = zodpress.contract({
-  "/todos": {
-    get: {
+  tags: "Contract 2",
+  get: {
+    "/todos": {
       summary: "Get all todos",
       query: z.object({
         page: z.string().min(2).describe("Page number"),
@@ -45,8 +53,10 @@ const contract2 = zodpress.contract({
       responses: {
         200: todoSchema.array()
       }
-    },
-    post: {
+    }
+  },
+  post: {
+    "/todos": {
       summary: "Create a todo",
       body: createTodoSchema,
       responses: {
@@ -70,9 +80,10 @@ const getTodoHandler: inferHandler<typeof r1, "get", "/todos/:id"> = (
   _req,
   res
 ) => {
+  console.log(typeof _req.params.id);
   res.status(200).send({
     id: "1",
-    title: "Todo"
+    title: "Todooo"
   });
 };
 
@@ -110,7 +121,7 @@ r2.get("/bar", (_req, res) => {
   res.send("Hello World");
 });
 
-const openApiDocument = app.openapi({
+const openApiDocument = app.openapi({ pathPrefix: "/api/v2" }).generate({
   openapi: "3.0.0",
   info: {
     version: "2.0.0",
@@ -123,6 +134,7 @@ const openApiDocument = app.openapi({
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
 app.use((err: any, _req: any, res: any, _next: any) => {
+  console.log("In error handler");
   res.status(400).send(err);
 });
 

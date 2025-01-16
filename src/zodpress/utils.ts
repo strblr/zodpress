@@ -1,7 +1,7 @@
 import { z } from "zod";
-import type { Zodpress } from "./types";
+import type { AnyContract, Zodpress } from "./types";
 
-export function isZodpress(value: unknown): value is Zodpress<{}> {
+export function isZodpress(value: unknown): value is Zodpress<AnyContract> {
   return typeof value === "function" && "_contract" in value;
 }
 
@@ -18,9 +18,7 @@ export function openApiPath(...paths: (string | undefined)[]) {
 
 export function addToSet<T>(set: Set<T> | undefined, values: T[]) {
   set ??= new Set<T>();
-  for (const value of values) {
-    set.add(value);
-  }
+  values.forEach(value => set.add(value));
   return set;
 }
 
@@ -30,13 +28,13 @@ export function isEmpty(obj?: object) {
   );
 }
 
-export function getParamsSchema(path: string) {
+export function buildParamsSchema(path: string) {
   const params = path.match(/{\w+}/g)?.map(p => p.slice(1, -1)) ?? [];
   return isEmpty(params)
     ? undefined
     : z.object(Object.fromEntries(params.map(p => [p, z.string()])));
 }
 
-export function castArray<T>(value: T | T[]) {
-  return Array.isArray(value) ? value : [value];
+export function castArray<T>(value: undefined | T | T[]) {
+  return value === undefined ? [] : Array.isArray(value) ? value : [value];
 }

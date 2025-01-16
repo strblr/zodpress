@@ -1,30 +1,30 @@
 import express, { type RouterOptions } from "express";
+import type * as core from "express-serve-static-core";
 import { z } from "zod";
 import {
   OpenApiGeneratorV3,
-  OpenAPIRegistry,
-  type RouteConfig
+  OpenAPIRegistry
 } from "@asteasolutions/zod-to-openapi";
-import merge from "lodash.merge";
 import {
   addToSet,
   isZodpress,
   isEmpty,
-  getParamsSchema,
-  openApiPath
+  openApiPath,
+  castArray,
+  buildParamsSchema
 } from "./utils";
 import type {
   AnyContract,
   AnyMethod,
-  AnyConfig,
   RequestBody,
   RequestQuery,
   RequestHandler,
   ZodpressApp,
   ZodpressRouter,
   ValidationError,
-  RegistryOptions,
-  Zodpress
+  Zodpress,
+  OpenAPIRegisterOptions,
+  RequestParams
 } from "./types";
 
 export function zodpress<const Contract extends AnyContract>(
@@ -54,12 +54,12 @@ function extend<Contract extends AnyContract>(
   router: ZodpressRouter<Contract>,
   contract: Contract
 ) {
-  const tree = new Map<string, Set<Zodpress<{}>>>();
-  const previousUse = router.use.bind(router);
+  const node = new Map<string, Set<Zodpress<AnyContract>>>();
+  const baseUse = router.use.bind(router);
 
-  const registerNodes = <F extends Function>(path: string, handlers: F[]) => {
-    const routers = handlers.filter(h => isZodpress(h));
-    tree.set(path, addToSet(tree.get(path), routers));
+  const registerNodes = (path: string, handlers: any[]) => {
+    const nodes = handlers.filter(isZodpress);
+    node.set(path, addToSet(node.get(path), nodes));
     return handlers;
   };
 
@@ -71,66 +71,73 @@ function extend<Contract extends AnyContract>(
     } else {
       registerNodes("/", [path, ...handlers]);
     }
-    return previousUse(path, ...handlers);
+    return baseUse(path, ...handlers);
   };
 
-  router.openapi = ({ prefix, tags, ...config }) => {
+  router.openapi = options => {
     const registry = new OpenAPIRegistry();
-    router.register(registry, { prefix, tags });
-    return new OpenApiGeneratorV3(registry.definitions).generateDocument(
-      config
-    );
+    router.register(registry, options);
+    return {
+      registerComponent(type, name, component) {
+        registry.registerComponent(type as any, name, component);
+        return this;
+      },
+      generate(config) {
+        return new OpenApiGeneratorV3(registry.definitions).generateDocument(
+          config
+        );
+      }
+    };
   };
 
   router.register = (registry, options) => {
-    for (const [path, configs] of Object.entries(contract)) {
-      for (const [method, config] of Object.entries(configs)) {
-        if (!config) continue;
-        register(method as AnyMethod, path, config, registry, options);
+    for (const method of ["get", "post", "put", "patch", "delete"] as const) {
+      for (const path of Object.keys(contract[method] ?? {})) {
+        register(contract, method, path, registry, options);
       }
     }
-    for (const [path, routers] of tree) {
-      for (const router of routers) {
-        router.register(registry, {
-          prefix: `${options?.prefix ?? ""}/${path}`
+    for (const [path, nodes] of node) {
+      for (const node of nodes) {
+        node.register(registry, {
+          pathPrefix: `${options?.pathPrefix ?? ""}/${path}`
         });
       }
     }
   };
 
   router.z = {
-    get: (path, ...handlers) => {
+    get(path, ...handlers) {
       return router.get(
         path,
-        validate(contract, path, "get"),
+        validate(contract, "get", path),
         ...registerNodes(path, handlers)
       );
     },
-    post: (path, ...handlers) => {
+    post(path, ...handlers) {
       return router.post(
         path,
-        validate(contract, path, "post"),
+        validate(contract, "post", path),
         ...registerNodes(path, handlers)
       );
     },
-    put: (path, ...handlers) => {
+    put(path, ...handlers) {
       return router.put(
         path,
-        validate(contract, path, "put"),
+        validate(contract, "put", path),
         ...registerNodes(path, handlers)
       );
     },
-    patch: (path, ...handlers) => {
+    patch(path, ...handlers) {
       return router.patch(
         path,
-        validate(contract, path, "patch"),
+        validate(contract, "patch", path),
         ...registerNodes(path, handlers)
       );
     },
-    delete: (path, ...handlers) => {
+    delete(path, ...handlers) {
       return router.delete(
         path,
-        validate(contract, path, "delete"),
+        validate(contract, "delete", path),
         ...registerNodes(path, handlers)
       );
     }
@@ -139,52 +146,73 @@ function extend<Contract extends AnyContract>(
 
 function validate<
   Contract extends AnyContract,
-  Path extends keyof Contract & string,
-  Method extends AnyMethod
+  Method extends keyof Contract & AnyMethod,
+  Path extends keyof Contract[Method] & string
 >(
   contract: Contract,
-  path: Path,
-  method: Method
+  method: Method,
+  path: Path
 ): RequestHandler<Contract, Method, Path> {
-  const config = contract[path]?.[method];
-  return (req, _res, next) => {
-    if (config) {
-      const { query, body, contentType = "application/json" } = config;
-      const errors: ValidationError = {};
+  const config = contract[method]?.[path];
+  if (!config) {
+    throw new Error(`Zodpress: No config found for <${method} ${path}>`);
+  }
+  const {
+    validationErrorPolicy = contract.validationErrorPolicy ?? "send",
+    params,
+    query,
+    body,
+    contentType = "application/json"
+  } = config;
 
-      if (query) {
-        const result = query.safeParse(req.query);
-        if (result.success) {
-          req.query = result.data as RequestQuery<Contract, Method, Path>;
-        } else {
-          errors.queryErrors = result.error.issues;
-        }
-      }
-      if (body && contentType === "application/json") {
-        const result = body.safeParse(req.body);
-        if (result.success) {
-          req.body = result.data as RequestBody<Contract, Method, Path>;
-        } else {
-          errors.bodyErrors = result.error.issues;
-        }
-      }
-      if (!isEmpty(errors)) {
-        next(errors);
-        return;
+  return (req, res, next) => {
+    const errors: ValidationError = {};
+    if (params) {
+      const result = params.safeParse(req.params);
+      if (result.success) {
+        req.params = result.data as RequestParams<Contract, Method, Path>;
+      } else {
+        errors.paramsErrors = result.error.issues;
       }
     }
-    next();
+    if (query) {
+      const result = query.safeParse(req.query);
+      if (result.success) {
+        req.query = result.data as RequestQuery<Contract, Method, Path>;
+      } else {
+        errors.queryErrors = result.error.issues;
+      }
+    }
+    if (body && contentType === "application/json") {
+      const result = body.safeParse(req.body);
+      if (result.success) {
+        req.body = result.data as RequestBody<Contract, Method, Path>;
+      } else {
+        errors.bodyErrors = result.error.issues;
+      }
+    }
+    if (isEmpty(errors)) {
+      next();
+    } else if (validationErrorPolicy === "forward") {
+      next(errors);
+    } else {
+      (res as core.Response).status(400).send(errors);
+    }
   };
 }
 
 function register(
+  contract: AnyContract,
   method: AnyMethod,
   path: string,
-  config: AnyConfig,
   registry: OpenAPIRegistry,
-  options?: RegistryOptions
+  options?: OpenAPIRegisterOptions
 ) {
-  const fullPath = openApiPath(options?.prefix, path);
+  const config = contract[method]?.[path];
+  if (!config) {
+    throw new Error(`Zodpress: No config found for <${method} ${path}>`);
+  }
+  const fullPath = openApiPath(options?.pathPrefix, path);
 
   const body =
     config.body || config.contentType
@@ -198,7 +226,7 @@ function register(
       : undefined;
 
   const responses = Object.fromEntries(
-    Object.entries(config.responses).map(([status, response]) => [
+    Object.entries(config.responses ?? {}).map(([status, response]) => [
       status,
       {
         description: response.description ?? "",
@@ -210,20 +238,25 @@ function register(
     ])
   );
 
-  const routeConfig: RouteConfig = merge(
-    {
-      method,
-      path: fullPath,
-      summary: config.summary,
-      request: {
-        params: getParamsSchema(fullPath),
-        query: config.query,
-        body
-      },
-      responses
+  registry.registerPath({
+    ...config.openapi,
+    method,
+    path: fullPath,
+    summary: config.summary,
+    tags: [
+      ...castArray(contract.tags),
+      ...castArray(config.tags),
+      ...castArray(config.openapi?.tags)
+    ],
+    request: {
+      ...config.openapi?.request,
+      params: config.params ?? buildParamsSchema(fullPath),
+      query: config.query,
+      body
     },
-    config.openapi
-  );
-
-  registry.registerPath(routeConfig);
+    responses: {
+      ...config.openapi?.responses,
+      ...responses
+    }
+  });
 }

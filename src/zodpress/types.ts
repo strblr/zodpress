@@ -1,28 +1,35 @@
 import type * as core from "express-serve-static-core";
 import type { z, ZodIssue } from "zod";
 import type {
-  OpenApiGeneratorV3,
   OpenAPIRegistry,
-  RouteConfig
+  RouteConfig,
+  OpenApiGeneratorV3
 } from "@asteasolutions/zod-to-openapi";
 
 // Contract
 
 export type AnyMethod = "get" | "post" | "put" | "patch" | "delete";
+export type AnyValidationErrorPolicy = "send" | "forward";
 
 export type AnyContract = {
-  [path: string]: {
-    [method in AnyMethod]?: AnyConfig;
+  tags?: string | string[];
+  validationErrorPolicy?: AnyValidationErrorPolicy;
+} & {
+  [method in AnyMethod]?: {
+    [path: string]: AnyConfig;
   };
 };
 
 export interface AnyConfig {
   summary?: string;
+  tags?: string | string[];
   openapi?: Partial<RouteConfig>;
+  validationErrorPolicy?: AnyValidationErrorPolicy;
+  params?: z.AnyZodObject;
   query?: z.AnyZodObject;
   body?: z.ZodTypeAny;
   contentType?: string;
-  responses: {
+  responses?: {
     [status: number]: z.ZodTypeAny;
   };
 }
@@ -37,33 +44,27 @@ export interface ZodpressRouter<Contract extends AnyContract>
   extends core.Router,
     Zodpress<Contract, ZodpressRouter<Contract>> {}
 
-export interface ZodpressRoute<
-  Contract extends AnyContract,
-  _Path extends keyof Contract & string
-> extends core.IRoute {}
-
-export interface Zodpress<Contract extends AnyContract, ReturnType = any> {
+export interface Zodpress<Contract extends AnyContract, ReturnType = any>
+  extends ZodpressOpenAPI {
   _contract: Contract;
-  register(registry: OpenAPIRegistry, options?: RegistryOptions): void;
-  openapi(config: OpenAPIObjectConfig): OpenAPIObject;
   z: {
-    get<Path extends PathForMethod<Contract, "get"> & string>(
+    get<Path extends keyof Contract["get"] & string>(
       path: Path,
       ...handlers: RequestHandler<Contract, "get", Path>[]
     ): ReturnType;
-    post<Path extends PathForMethod<Contract, "post"> & string>(
+    post<Path extends keyof Contract["post"] & string>(
       path: Path,
       ...handlers: RequestHandler<Contract, "post", Path>[]
     ): ReturnType;
-    put<Path extends PathForMethod<Contract, "put"> & string>(
+    put<Path extends keyof Contract["put"] & string>(
       path: Path,
       ...handlers: RequestHandler<Contract, "put", Path>[]
     ): ReturnType;
-    patch<Path extends PathForMethod<Contract, "patch"> & string>(
+    patch<Path extends keyof Contract["patch"] & string>(
       path: Path,
       ...handlers: RequestHandler<Contract, "patch", Path>[]
     ): ReturnType;
-    delete<Path extends PathForMethod<Contract, "delete"> & string>(
+    delete<Path extends keyof Contract["delete"] & string>(
       path: Path,
       ...handlers: RequestHandler<Contract, "delete", Path>[]
     ): ReturnType;
@@ -72,67 +73,98 @@ export interface Zodpress<Contract extends AnyContract, ReturnType = any> {
 
 // OpenAPI
 
-export type OpenAPIObject = ReturnType<OpenApiGeneratorV3["generateDocument"]>;
+export interface ZodpressOpenAPI {
+  register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions): void;
+  openapi(options?: OpenAPIRegisterOptions): OpenAPIFactory;
+}
 
-export interface RegistryOptions {
-  prefix?: string;
-  tags?: string | string[];
+export interface OpenAPIRegisterOptions {
+  pathPrefix?: string;
 }
 
 export type OpenAPIObjectConfig = Parameters<
   OpenApiGeneratorV3["generateDocument"]
->[0] &
-  RegistryOptions;
+>[0];
+
+export type OpenAPIObject = ReturnType<OpenApiGeneratorV3["generateDocument"]>;
+
+export interface OpenAPIFactory {
+  registerComponent(
+    type: string,
+    name: string,
+    component: object
+  ): OpenAPIFactory;
+  generate(config: OpenAPIObjectConfig): OpenAPIObject;
+}
 
 // Request handler
 
 export type RequestHandler<
   Contract extends AnyContract,
-  Method extends AnyMethod,
-  Path extends keyof Contract & string
+  Method extends keyof Contract & AnyMethod,
+  Path extends keyof Contract[Method] & string
 > = BaseRequestHandler<
-  PathParameters<Path>,
+  RequestParams<Contract, Method, Path>,
   RequestQuery<Contract, Method, Path>,
   RequestBody<Contract, Method, Path>,
-  ResponseStatusCode<Contract, Method, Path>,
-  ResponseBody<Contract, Method, Path>
+  ResponseMap<Contract, Method, Path>
 >;
 
 type BaseRequestHandler<
   Params,
-  ReqQuery,
-  ReqBody,
-  StatusCode extends number,
-  ResBody,
-  LocalsObj extends Record<string, any> = Record<string, any>
+  Query,
+  Body,
+  ResMap extends Record<number, any>
 > = (
-  req: core.Request<Params, ResBody, ReqBody, ReqQuery, LocalsObj>,
-  // core.RequestHandler doesn't have a generic for status code, hence BaseRequestHandler
-  res: core.Response<ResBody, LocalsObj, StatusCode>,
+  req: core.Request<Params, ResponseBody<ResMap>, Body, Query>,
+  res: BaseResponse<ResMap>,
   next: core.NextFunction
 ) => void | Promise<void>;
 
+type BaseResponse<ResMap extends Record<number, any>> = Omit<
+  core.Response<
+    ResponseBody<ResMap>,
+    Record<string, any>,
+    ResponseCode<ResMap>
+  >,
+  "status"
+> & {
+  status<StatusCode extends ResponseCode<ResMap>>(
+    code: StatusCode
+  ): BaseResponse<Pick<ResMap, StatusCode>>;
+};
+
 // Path parameters
 
-export type PathParameters<Path extends string> =
-  Path extends `${infer Required}{${infer Optional}}${infer Next}`
-    ? ParsePathParameters<Required> &
-        Partial<ParsePathParameters<Optional>> &
-        PathParameters<Next>
-    : ParsePathParameters<Path>;
+export type RequestParams<
+  Contract extends AnyContract,
+  Method extends keyof Contract & AnyMethod,
+  Path extends keyof Contract[Method] & string
+> = Contract[Method][Path] extends {
+  params: infer Params extends z.AnyZodObject;
+}
+  ? z.infer<Params>
+  : RequestParamsStr<Path>;
 
-type ParsePathParameters<Path extends string> = string extends Path
-  ? ParamsDictionary
+type RequestParamsStr<Path extends string> =
+  Path extends `${infer Required}{${infer Optional}}${infer Next}`
+    ? ParseRequestParams<Required> &
+        Partial<ParseRequestParams<Optional>> &
+        RequestParamsStr<Next>
+    : ParseRequestParams<Path>;
+
+type ParseRequestParams<Path extends string> = string extends Path
+  ? {}
   : Path extends `${string}(${string}`
-  ? ParamsDictionary
+  ? {}
   : Path extends `${string}:${infer Rest}`
-  ? (GetPathParameter<Rest> extends never
-      ? ParamsDictionary
-      : GetPathParameter<Rest> extends `${infer ParamName}?`
+  ? (GetPathParam<Rest> extends never
+      ? {}
+      : GetPathParam<Rest> extends `${infer ParamName}?`
       ? { [P in ParamName]?: string }
-      : { [P in GetPathParameter<Rest>]: string }) &
-      (Rest extends `${GetPathParameter<Rest>}${infer Next}`
-        ? PathParameters<Next>
+      : { [P in GetPathParam<Rest>]: string }) &
+      (Rest extends `${GetPathParam<Rest>}${infer Next}`
+        ? RequestParamsStr<Next>
         : unknown)
   : {};
 
@@ -141,83 +173,64 @@ type RemoveTail<
   Tail extends string
 > = Str extends `${infer P}${Tail}` ? P : Str;
 
-type GetPathParameter<Str extends string> = RemoveTail<
+type GetPathParam<Str extends string> = RemoveTail<
   RemoveTail<RemoveTail<Str, `/${string}`>, `-${string}`>,
   `.${string}`
 >;
-
-type ParamsDictionary = never;
 
 // Request query
 
 export type RequestQuery<
   Contract extends AnyContract,
-  Method extends AnyMethod,
-  Path extends keyof Contract & string
-> = Contract[Path][Method] extends AnyConfig
-  ? Contract[Path][Method]["query"] extends z.AnyZodObject
-    ? z.infer<Contract[Path][Method]["query"]>
-    : never
+  Method extends keyof Contract & AnyMethod,
+  Path extends keyof Contract[Method] & string
+> = Contract[Method][Path] extends {
+  query: infer Query extends z.AnyZodObject;
+}
+  ? z.infer<Query>
   : never;
 
 // Request body
 
 export type RequestBody<
   Contract extends AnyContract,
-  Method extends AnyMethod,
-  Path extends keyof Contract & string
-> = Contract[Path][Method] extends AnyConfig
-  ? Contract[Path][Method]["body"] extends z.ZodTypeAny
-    ? z.infer<Contract[Path][Method]["body"]>
-    : never
+  Method extends keyof Contract & AnyMethod,
+  Path extends keyof Contract[Method] & string
+> = Contract[Method][Path] extends { body: infer Body extends z.ZodTypeAny }
+  ? z.infer<Body>
   : never;
 
-// Status codes
+// Response status code and body
 
-export type ResponseStatusCode<
+export type ResponseMap<
   Contract extends AnyContract,
-  Method extends AnyMethod,
-  Path extends keyof Contract & string
-> = Contract[Path][Method] extends AnyConfig
-  ? keyof Contract[Path][Method]["responses"] & number
-  : never;
+  Method extends keyof Contract & AnyMethod,
+  Path extends keyof Contract[Method] & string
+> = Contract[Method][Path] extends {
+  responses: infer Responses extends Record<number, z.ZodTypeAny>;
+}
+  ? { [R in keyof Responses & number]: z.infer<Responses[R]> }
+  : {};
 
-// Response body
+type ResponseCode<ResponseMap extends Record<number, any>> = keyof ResponseMap &
+  number;
 
-export type ResponseBody<
-  Contract extends AnyContract,
-  Method extends AnyMethod,
-  Path extends keyof Contract & string
-> = Contract[Path][Method] extends AnyConfig
-  ? Contract[Path][Method]["responses"] extends { [status: number]: infer R }
-    ? R extends z.ZodTypeAny
-      ? z.infer<R>
-      : never
-    : never
-  : never;
-
-// Inference
-
-export type inferContract<Router extends Zodpress<{}>> = Router["_contract"];
-
-export type inferHandler<
-  Router extends Zodpress<{}>,
-  Method extends AnyMethod,
-  Path extends keyof inferContract<Router> & string
-> = RequestHandler<inferContract<Router>, Method, Path>;
+type ResponseBody<ResponseMap extends Record<number, any>> =
+  ResponseMap[ResponseCode<ResponseMap>];
 
 // Other
 
 export interface ValidationError {
+  paramsErrors?: ZodIssue[];
   queryErrors?: ZodIssue[];
   bodyErrors?: ZodIssue[];
 }
 
-export type PathForMethod<
-  Contract extends AnyContract,
-  Method extends AnyMethod
-> = {
-  [Path in keyof Contract]: Contract[Path & string][Method] extends AnyConfig
-    ? Path
-    : never;
-}[keyof Contract];
+export type inferContract<Router extends Zodpress<AnyContract>> =
+  Router["_contract"];
+
+export type inferHandler<
+  Router extends Zodpress<AnyContract>,
+  Method extends keyof inferContract<Router> & AnyMethod,
+  Path extends keyof inferContract<Router>[Method] & string
+> = RequestHandler<inferContract<Router>, Method, Path>;
