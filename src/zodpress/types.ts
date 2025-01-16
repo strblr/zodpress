@@ -9,7 +9,7 @@ import type {
 // Contract
 
 export type AnyMethod = "get" | "post" | "put" | "patch" | "delete";
-export type AnyValidationErrorPolicy = "send" | "forward";
+export type AnyValidationErrorPolicy = "send" | "forward" | core.ErrorRequestHandler
 
 export type AnyContract = {
   tags?: string | string[];

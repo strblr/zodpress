@@ -291,8 +291,37 @@ describe("zodpress", () => {
         .expect(400);
     });
 
+    it("should use custom error handler", async () => {
+      const errorBeacon = vi.fn();
+      const router = zodpress.Router({
+        validationErrorPolicy: (err, _req, res) => {
+          errorBeacon(err);
+          res.status(500).json(err);
+        },
+        post: {
+          "/test": {
+            body: z.object({
+              value: z.number()
+            }),
+            responses: {
+              200: z.string()
+            }
+          }
+        }
+      });
+      app.use("/v1", router);
+      router.z.post("/test", (_req, res) => {
+        res.status(200).send("OK");
+      });
+      await supertest(app)
+        .post("/v1/test")
+        .send({ value: "not a number" })
+        .expect(500);
+      expect(errorBeacon).toHaveBeenCalled();
+    });
+
     it("should forward validation errors", async () => {
-      const errorHandler = vi.fn();
+      const errorBeacon = vi.fn();
       const router = zodpress.Router({
         validationErrorPolicy: "forward",
         post: {
@@ -310,7 +339,7 @@ describe("zodpress", () => {
       app.use("/v1", router);
 
       app.use((err: any, _req: any, res: any, _next: any) => {
-        errorHandler(err);
+        errorBeacon(err);
         res.status(400).json(err);
       });
 
@@ -323,7 +352,7 @@ describe("zodpress", () => {
         .send({ value: "not a number" })
         .expect(400);
 
-      expect(errorHandler).toHaveBeenCalled();
+      expect(errorBeacon).toHaveBeenCalled();
     });
   });
 });

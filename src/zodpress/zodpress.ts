@@ -194,6 +194,8 @@ function validate<
     }
     if (isEmpty(errors)) {
       next();
+    } else if (typeof validationErrorPolicy === "function") {
+      validationErrorPolicy(errors, req, res, next);
     } else if (validationErrorPolicy === "forward") {
       next(errors);
     } else {
