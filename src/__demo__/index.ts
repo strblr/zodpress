@@ -138,8 +138,6 @@ app.use((err: any, _req: any, res: any, _next: any) => {
   res.status(400).send(err);
 });
 
-// console.log(JSON.stringify(openApiDocument.paths, null, 2));
-
 app.listen(3000, () => {
   console.log("Server is running on port 3000");
 });

@@ -3,7 +3,8 @@ import type * as core from "express-serve-static-core";
 import { z } from "zod";
 import {
   OpenApiGeneratorV3,
-  OpenAPIRegistry
+  OpenAPIRegistry,
+  type RouteConfig
 } from "@asteasolutions/zod-to-openapi";
 import {
   addToSet,
@@ -214,7 +215,7 @@ function register(
   }
   const fullPath = openApiPath(options?.pathPrefix, path);
 
-  const body =
+  const body: Exclude<RouteConfig["request"], undefined>["body"] =
     config.body || config.contentType
       ? {
           content: {
@@ -225,7 +226,7 @@ function register(
         }
       : undefined;
 
-  const responses = Object.fromEntries(
+  const responses: RouteConfig["responses"] = Object.fromEntries(
     Object.entries(config.responses ?? {}).map(([status, response]) => [
       status,
       {

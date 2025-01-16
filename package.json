@@ -25,22 +25,26 @@
     }
   },
   "scripts": {
-    "dev": "tsx watch src/test/index.ts",
+    "dev": "tsx watch src/__demo__/index.ts",
     "build": "tsc",
-    "start": "node dist/test/index.js"
+    "start": "node dist/__demo__/index.js",
+    "test": "vitest --typecheck",
+    "test:coverage": "vitest run --typecheck --coverage"
   },
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "^7.3.0",
-    "lodash.merge": "^4.6.2"
+    "@asteasolutions/zod-to-openapi": "^7.3.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "@types/lodash.merge": "^4.6.9",
+    "@types/supertest": "^6.0.2",
     "@types/swagger-ui-express": "^4.1.7",
+    "@vitest/coverage-v8": "^2.1.8",
     "express": "^4.21.2",
+    "supertest": "^7.0.0",
     "swagger-ui-express": "^5.0.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
+    "vitest": "^2.1.8",
     "zod": "^3.24.1"
   },
   "peerDependencies": {

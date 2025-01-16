@@ -212,10 +212,10 @@ export type ResponseMap<
   ? { [R in keyof Responses & number]: z.infer<Responses[R]> }
   : {};
 
-type ResponseCode<ResponseMap extends Record<number, any>> = keyof ResponseMap &
-  number;
+export type ResponseCode<ResponseMap extends Record<number, any>> =
+  keyof ResponseMap & number;
 
-type ResponseBody<ResponseMap extends Record<number, any>> =
+export type ResponseBody<ResponseMap extends Record<number, any>> =
   ResponseMap[ResponseCode<ResponseMap>];
 
 // Other

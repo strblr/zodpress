@@ -7,13 +7,14 @@ export function isZodpress(value: unknown): value is Zodpress<AnyContract> {
 
 export function openApiPath(...paths: (string | undefined)[]) {
   return ["/", ...paths]
+    .map(p => p?.trim())
     .filter(p => p)
     .join("/")
     .replace(/{([^}]+)}/g, "$1") // /path{/id}/foo => /path/id/foo
     .replace(/(?<!\\)\?/g, "") // /path/:id? => /path/:id
     .replace(/:(\w+)/g, "{$1}") // /path/:id => /path/{id}
     .replace(/\/+/g, "/") // /path//foo => /path/foo
-    .replace(/\/$/, ""); // /path/foo/ => /path/foo
+    .replace(/(?<=.)\/$/, ""); // /path/foo/ => /path/foo
 }
 
 export function addToSet<T>(set: Set<T> | undefined, values: T[]) {
