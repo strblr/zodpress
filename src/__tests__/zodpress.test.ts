@@ -201,6 +201,97 @@ describe("zodpress", () => {
       });
     });
 
+    it("should extract named schemas to components", () => {
+      const router = zodpress.Router({
+        get: {
+          "/users": {
+            responses: {
+              200: z.array(
+                z
+                  .object({
+                    id: z.string(),
+                    name: z.string(),
+                    profile: z
+                      .object({
+                        age: z.number(),
+                        bio: z.string()
+                      })
+                      .openapi("UserProfile"),
+                    posts: z.array(
+                      z
+                        .object({
+                          id: z.string(),
+                          title: z.string()
+                        })
+                        .openapi("Post")
+                    )
+                  })
+                  .openapi("User")
+              )
+            }
+          }
+        }
+      });
+
+      const openApiDoc = router.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+
+      expect(openApiDoc.paths["/users"].get?.responses[200]).toEqual(
+        expect.objectContaining({
+          content: {
+            "application/json": {
+              schema: {
+                type: "array",
+                items: {
+                  $ref: "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        })
+      );
+
+      // Verify all schema structures in a single assertion
+      expect(openApiDoc.components?.schemas).toEqual(
+        expect.objectContaining({
+          User: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              profile: { $ref: "#/components/schemas/UserProfile" },
+              posts: {
+                type: "array",
+                items: { $ref: "#/components/schemas/Post" }
+              }
+            },
+            required: ["id", "name", "profile", "posts"]
+          },
+          UserProfile: {
+            type: "object",
+            properties: {
+              age: { type: "number" },
+              bio: { type: "string" }
+            },
+            required: ["age", "bio"]
+          },
+          Post: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              title: { type: "string" }
+            },
+            required: ["id", "title"]
+          }
+        })
+      );
+    });
+
     it("should throw error if route config is undefined", () => {
       const router = zodpress.Router({
         get: { "/items": undefined }
@@ -228,6 +319,100 @@ describe("zodpress", () => {
         }
       });
       expect(openApiDoc.paths["/v1/items"].get).toBeDefined();
+    });
+
+    it("should combine tags from multiple sources", () => {
+      const router = zodpress.Router({
+        tags: ["Global"],
+        get: {
+          "/test": {
+            tags: ["Route"],
+            openapi: {
+              tags: ["OpenAPI"]
+            },
+            responses: { 200: z.void() }
+          }
+        }
+      });
+
+      const openApiDoc = router.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+
+      expect(openApiDoc.paths["/test"].get?.tags).toEqual([
+        "Global",
+        "Route",
+        "OpenAPI"
+      ]);
+    });
+
+    it("should handle custom content types", async () => {
+      const router = zodpress.Router({
+        post: {
+          "/text": {
+            contentType: "text/plain",
+            body: z.string(),
+            responses: { 200: z.string() }
+          }
+        }
+      });
+
+      const openApiDoc = router.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+
+      expect(openApiDoc.paths["/text"].post?.requestBody).toEqual(
+        expect.objectContaining({
+          content: { "text/plain": { schema: { type: "string" } } }
+        })
+      );
+    });
+
+    it("should merge custom openapi request configuration", () => {
+      const router = zodpress.Router({
+        get: {
+          "/test": {
+            responses: { 200: z.void() },
+            openapi: {
+              security: [{ apiKey: [] }],
+              request: {
+                headers: z.object({
+                  "x-custom": z.string()
+                })
+              }
+            }
+          }
+        }
+      });
+
+      const openApiDoc = router.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+
+      expect(openApiDoc.paths["/test"].get).toEqual(
+        expect.objectContaining({
+          security: [{ apiKey: [] }],
+          parameters: [
+            expect.objectContaining({
+              in: "header",
+              name: "x-custom",
+              schema: { type: "string" }
+            })
+          ]
+        })
+      );
     });
   });
 
@@ -353,6 +538,115 @@ describe("zodpress", () => {
         .expect(400);
 
       expect(errorBeacon).toHaveBeenCalled();
+    });
+  });
+
+  describe("Nested routers", () => {
+    it("should handle nested routers and concatenate paths correctly", async () => {
+      const userRouter = zodpress.Router({
+        get: {
+          "/:id": {
+            summary: "Get user",
+            responses: {
+              200: z
+                .object({
+                  id: z.string(),
+                  name: z.string()
+                })
+                .openapi("User")
+            }
+          },
+          "/:id/posts": {
+            summary: "Get user posts",
+            responses: {
+              200: z
+                .array(
+                  z.object({
+                    id: z.string(),
+                    title: z.string()
+                  })
+                )
+                .openapi("UserPosts")
+            }
+          }
+        }
+      });
+
+      const apiRouter = zodpress.Router({
+        get: {
+          "/health": {
+            summary: "Health check",
+            responses: {
+              200: z.literal("OK")
+            }
+          }
+        }
+      });
+
+      // Set up route handlers
+      userRouter.z.get("/:id", (_req, res) => {
+        res.json({ id: "1", name: "Test User" });
+      });
+      userRouter.z.get("/:id/posts", (_req, res) => {
+        res.json([{ id: "1", title: "Test Post" }]);
+      });
+      apiRouter.z.get("/health", (_req, res) => {
+        res.send("OK");
+      });
+
+      // Set up nested routing structure
+      apiRouter.use("/users", userRouter);
+      const app = zodpress({});
+      app.use("/api/v1", apiRouter);
+
+      // Generate OpenAPI documentation
+      const openApiDoc = app.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+
+      // Verify paths are correctly concatenated
+      expect(openApiDoc.paths).to.have.keys(
+        "/api/v1/health",
+        "/api/v1/users/{id}",
+        "/api/v1/users/{id}/posts"
+      );
+
+      // Verify individual route configurations are preserved
+      expect(openApiDoc.paths["/api/v1/users/{id}"].get).toEqual(
+        expect.objectContaining({
+          summary: "Get user",
+          responses: expect.objectContaining({
+            200: expect.objectContaining({
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/User" }
+                }
+              }
+            })
+          })
+        })
+      );
+
+      await supertest(app).get("/api/v1/health").expect(200).expect("OK");
+
+      await supertest(app).get("/api/v1/users/1").expect(200).expect({
+        id: "1",
+        name: "Test User"
+      });
+
+      await supertest(app)
+        .get("/api/v1/users/1/posts")
+        .expect(200)
+        .expect([
+          {
+            id: "1",
+            title: "Test Post"
+          }
+        ]);
     });
   });
 });

@@ -81,7 +81,7 @@ const getTodoHandler: inferHandler<typeof r1, "get", "/todos/:id"> = (
   res
 ) => {
   console.log(typeof _req.params.id);
-  res.status(200).send({
+  res.status(200).json({
     id: "1",
     title: "Todooo"
   });
