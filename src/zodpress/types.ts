@@ -27,6 +27,7 @@ export type AnyContract = {
 export interface AnyConfig {
   summary?: string;
   description?: string;
+  deprecated?: boolean;
   tags?: string | string[];
   openapi?: Partial<RouteConfig>;
   validationErrorPolicy?: AnyValidationErrorPolicy;

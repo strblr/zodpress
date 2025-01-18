@@ -247,6 +247,7 @@ function register(
     path: fullPath,
     summary: config.summary,
     description: config.description,
+    deprecated: config.deprecated,
     tags: [
       ...castArray(contract.tags),
       ...castArray(config.tags),
