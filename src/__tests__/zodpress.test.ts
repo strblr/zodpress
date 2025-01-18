@@ -385,7 +385,7 @@ describe("zodpress", () => {
       expect(openApiDoc.paths["/test"].get?.tags).toEqual(["Global", "Route"]);
     });
 
-    it("should handle custom content types", async () => {
+    it("should handle custom request content types", async () => {
       const router = zodpress.Router({
         post: {
           "/text": {
@@ -405,6 +405,28 @@ describe("zodpress", () => {
       });
 
       expect(openApiDoc.paths["/text"].post?.requestBody).toEqual(
+        expect.objectContaining({
+          content: { "text/plain": { schema: { type: "string" } } }
+        })
+      );
+    });
+
+    it("should handle custom response content types", async () => {
+      const router = zodpress.Router({
+        get: {
+          "/text": { responses: { 200: z.string().contentType("text/plain") } }
+        }
+      });
+
+      const openApiDoc = router.z.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+
+      expect(openApiDoc.paths["/text"].get?.responses[200]).toEqual(
         expect.objectContaining({
           content: { "text/plain": { schema: { type: "string" } } }
         })

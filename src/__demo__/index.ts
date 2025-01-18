@@ -39,19 +39,7 @@ const contract1 = zodpress.contract({
         text: z.string().describe("The text to return")
       }),
       responses: {
-        200: z.any()
-      },
-      openapi: {
-        responses: {
-          200: {
-            description: "Ok",
-            content: {
-              "text/plain": {
-                schema: z.string()
-              }
-            }
-          }
-        }
+        200: z.string().contentType("text/plain")
       }
     }
   },

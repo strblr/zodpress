@@ -233,7 +233,11 @@ function register(
         content:
           response instanceof z.ZodVoid
             ? undefined
-            : { "application/json": { schema: response } }
+            : {
+                [response._def._zodpress?.contentType ?? "application/json"]: {
+                  schema: response
+                }
+              }
       }
     ])
   );
