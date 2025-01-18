@@ -140,7 +140,7 @@ type BaseResponse<ResMap extends Record<number, any>> = Omit<
   >,
   "status"
 > & {
-  status<StatusCode extends ResponseCode<ResMap>>(
+  status<StatusCode extends Pretty<ResponseCode<ResMap>> & number>(
     code: StatusCode
   ): BaseResponse<Pick<ResMap, StatusCode>>;
 };
@@ -252,3 +252,7 @@ export type inferHandler<
   Method extends keyof inferContract<Router> & AnyMethod,
   Path extends keyof inferContract<Router>[Method] & string
 > = RequestHandler<inferContract<Router>, Method, Path>;
+
+type Pretty<T> = {
+  [K in keyof T]: T[K];
+};
