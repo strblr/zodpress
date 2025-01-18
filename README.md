@@ -79,13 +79,7 @@ app.z.get("/todo/:id", (req, res) => {
 
 Here is a sample of what I mean by strongly typed:
 
-![image](https://github.com/user-attachments/assets/ef2f6dcf-b4a6-416a-812e-88f700b00598)
-
-![image](https://github.com/user-attachments/assets/377811b4-a303-40a4-803c-cdbf73b16e4b)
-
-![image](https://github.com/user-attachments/assets/13898fea-46eb-4f2f-bdce-b92c5a0e14b3)
-
-![image](https://github.com/user-attachments/assets/fe8782b0-a609-40c8-a367-1f269ce7e1d8)
+![image](https://github.com/user-attachments/assets/74429229-a2d4-4d24-a179-e101afd946cb)
 
 ### Request validation
 
