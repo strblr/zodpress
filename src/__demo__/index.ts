@@ -33,7 +33,27 @@ const contract1 = zodpress.contract({
         404: z.string()
       }
     },
-    "/test": {}
+    "/test": {
+      summary: "Get a sample txt file",
+      query: z.object({
+        text: z.string().describe("The text to return")
+      }),
+      responses: {
+        200: z.any()
+      },
+      openapi: {
+        responses: {
+          200: {
+            description: "Ok",
+            content: {
+              "text/plain": {
+                schema: z.string()
+              }
+            }
+          }
+        }
+      }
+    }
   },
   delete: {
     "/todos/:id": {
@@ -96,6 +116,10 @@ r1.z.get("/todos/:id", getTodoHandler);
 
 r1.z.delete("/todos/:id", (_req, res) => {
   res.status(204).send();
+});
+
+r1.z.get("/test", (_req, res) => {
+  res.status(200).type("text/plain").send("Hello World");
 });
 
 r2.z.get("/todos", (_req, res) => {
