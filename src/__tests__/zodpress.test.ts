@@ -602,6 +602,21 @@ describe("zodpress", () => {
 
       expect(errorBeacon).toHaveBeenCalled();
     });
+
+    it("should ignore validation errors", async () => {
+      const router = zodpress.Router({
+        validationErrorPolicy: "ignore",
+        post: { "/test": { body: z.object({ value: z.number() }) } }
+      });
+      router.z.post("/test", (_req, res) => {
+        res.end();
+      });
+      app.use("/v1", router);
+      await supertest(app)
+        .post("/v1/test")
+        .send({ value: "not a number" })
+        .expect(200);
+    });
   });
 
   describe("Nested routers", () => {

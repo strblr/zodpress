@@ -192,14 +192,14 @@ function validate(
         error.bodyErrors = result.error.issues;
       }
     }
-    if (error.isEmpty()) {
+    if (error.isEmpty() || validationErrorPolicy === "ignore") {
       next();
-    } else if (typeof validationErrorPolicy === "function") {
-      validationErrorPolicy(error, req, res, next);
+    } else if (validationErrorPolicy === "send") {
+      res.status(400).json(error);
     } else if (validationErrorPolicy === "forward") {
       next(error);
     } else {
-      res.status(400).json(error);
+      validationErrorPolicy(error, req, res, next);
     }
   };
 }

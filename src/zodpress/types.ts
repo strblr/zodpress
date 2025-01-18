@@ -12,6 +12,7 @@ export type AnyMethod = "get" | "post" | "put" | "patch" | "delete";
 export type AnyValidationErrorPolicy =
   | "send"
   | "forward"
+  | "ignore"
   | core.ErrorRequestHandler;
 
 export type AnyContract = {
