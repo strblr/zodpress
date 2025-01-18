@@ -1,5 +1,5 @@
 import express from "express";
-import * as swaggerUi from "swagger-ui-express";
+import * as swagger from "swagger-ui-express";
 import { inferHandler, zodpress } from "../zodpress";
 import { z } from "../zod";
 
@@ -126,7 +126,7 @@ r2.get("/bar", (_req, res) => {
   res.send("Hello World");
 });
 
-const openApiDocument = app.openapi({ pathPrefix: "/api/v2" }).generate({
+const openApiDocument = app.z.openapi({ pathPrefix: "/api/v2" }).generate({
   openapi: "3.0.0",
   info: {
     version: "2.0.0",
@@ -136,7 +136,7 @@ const openApiDocument = app.openapi({ pathPrefix: "/api/v2" }).generate({
   servers: [{ url: "http://localhost:3000" }]
 });
 
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+app.use("/docs", swagger.serve, swagger.setup(openApiDocument));
 
 app.use((err: any, _req: any, res: any, _next: any) => {
   console.log("In error handler");

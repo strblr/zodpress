@@ -138,7 +138,7 @@ describe("zodpress", () => {
 
   describe("OpenAPI integration", () => {
     it("should generate valid open api documentation", () => {
-      const openApiDoc = app.openapi().generate({
+      const openApiDoc = app.z.openapi().generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -185,7 +185,7 @@ describe("zodpress", () => {
         get: { "/items": { headers: z.object({ "x-api-key": z.string() }) } }
       });
       app.use("/v1", router);
-      const openApiDoc = app.openapi().generate({
+      const openApiDoc = app.z.openapi().generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -205,7 +205,7 @@ describe("zodpress", () => {
       const router = zodpress.Router({
         get: { "/items": { responses: { 200: z.void() } } }
       });
-      const openApiDoc = router.openapi().generate({
+      const openApiDoc = router.z.openapi().generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -219,7 +219,7 @@ describe("zodpress", () => {
     });
 
     it("should register custom components", () => {
-      const openApiDoc = app
+      const openApiDoc = app.z
         .openapi()
         .with(reg => {
           reg.registerComponent("securitySchemes", "apiKey", {
@@ -275,7 +275,7 @@ describe("zodpress", () => {
         }
       });
 
-      const openApiDoc = router.openapi().generate({
+      const openApiDoc = router.z.openapi().generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -339,7 +339,7 @@ describe("zodpress", () => {
         get: { "/items": undefined }
       } as {});
       expect(() =>
-        router.openapi().generate({
+        router.z.openapi().generate({
           openapi: "3.0.0",
           info: {
             title: "Test API",
@@ -353,7 +353,7 @@ describe("zodpress", () => {
       const router = zodpress.Router({
         get: { "/items": { responses: { 200: z.void() } } }
       });
-      const openApiDoc = router.openapi({ pathPrefix: "/v1" }).generate({
+      const openApiDoc = router.z.openapi({ pathPrefix: "/v1" }).generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -377,7 +377,7 @@ describe("zodpress", () => {
         }
       });
 
-      const openApiDoc = router.openapi().generate({
+      const openApiDoc = router.z.openapi().generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -403,7 +403,7 @@ describe("zodpress", () => {
         }
       });
 
-      const openApiDoc = router.openapi().generate({
+      const openApiDoc = router.z.openapi().generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -435,7 +435,7 @@ describe("zodpress", () => {
         }
       });
 
-      const openApiDoc = router.openapi().generate({
+      const openApiDoc = router.z.openapi().generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -678,7 +678,7 @@ describe("zodpress", () => {
       app.use("/api/v1", apiRouter);
 
       // Generate OpenAPI documentation
-      const openApiDoc = app.openapi().generate({
+      const openApiDoc = app.z.openapi().generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",

@@ -51,10 +51,11 @@ export interface ZodpressRouter<Contract extends AnyContract>
   extends core.Router,
     Zodpress<Contract, ZodpressRouter<Contract>> {}
 
-export interface Zodpress<Contract extends AnyContract, ReturnType = any>
-  extends ZodpressOpenAPI {
-  _contract: Contract;
+export interface Zodpress<Contract extends AnyContract, ReturnType = any> {
   z: {
+    contract: Contract;
+    openapi(options?: OpenAPIRegisterOptions): OpenAPIFactory;
+    register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions): void;
     get<Path extends keyof Contract["get"] & string>(
       path: Path,
       ...handlers: RequestHandler<Contract, "get", Path>[]
@@ -79,11 +80,6 @@ export interface Zodpress<Contract extends AnyContract, ReturnType = any>
 }
 
 // OpenAPI
-
-export interface ZodpressOpenAPI {
-  register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions): void;
-  openapi(options?: OpenAPIRegisterOptions): OpenAPIFactory;
-}
 
 export interface OpenAPIRegisterOptions {
   pathPrefix?: string;
@@ -249,7 +245,7 @@ export type ResponseBody<ResponseMap extends Record<number, any>> =
 // Other
 
 export type inferContract<Router extends Zodpress<AnyContract>> =
-  Router["_contract"];
+  Router["z"]["contract"];
 
 export type inferHandler<
   Router extends Zodpress<AnyContract>,

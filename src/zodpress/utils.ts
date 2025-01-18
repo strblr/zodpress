@@ -2,7 +2,13 @@ import { z } from "zod";
 import type { AnyContract, Zodpress } from "./types";
 
 export function isZodpress(value: unknown): value is Zodpress<AnyContract> {
-  return typeof value === "function" && "_contract" in value;
+  return (
+    typeof value === "function" &&
+    "z" in value &&
+    typeof value.z === "object" &&
+    value.z !== null &&
+    "contract" in value.z
+  );
 }
 
 export function openApiPath(...paths: (string | undefined)[]) {

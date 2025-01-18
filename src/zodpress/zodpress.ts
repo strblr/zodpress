@@ -59,8 +59,6 @@ function extend<Contract extends AnyContract>(
     return handlers;
   };
 
-  router._contract = contract;
-
   router.use = (path: any, ...handlers: any[]) => {
     if (typeof path === "string") {
       registerNodes(path, handlers);
@@ -70,38 +68,37 @@ function extend<Contract extends AnyContract>(
     return baseUse(path, ...handlers);
   };
 
-  router.openapi = options => {
-    const registry = new OpenAPIRegistry();
-    router.register(registry, options);
-    return {
-      with(callback) {
-        callback(registry);
-        return this;
-      },
-      generate(config) {
-        return new OpenApiGeneratorV3(registry.definitions).generateDocument(
-          config
-        );
-      }
-    };
-  };
-
-  router.register = (registry, options) => {
-    for (const method of ["get", "post", "put", "patch", "delete"] as const) {
-      for (const path of Object.keys(contract[method] ?? {})) {
-        register(contract, method, path, registry, options);
-      }
-    }
-    for (const [path, nodes] of node) {
-      for (const node of nodes) {
-        node.register(registry, {
-          pathPrefix: `${options?.pathPrefix ?? ""}/${path}`
-        });
-      }
-    }
-  };
-
   router.z = {
+    contract,
+    openapi(options) {
+      const registry = new OpenAPIRegistry();
+      router.z.register(registry, options);
+      return {
+        with(callback) {
+          callback(registry);
+          return this;
+        },
+        generate(config) {
+          return new OpenApiGeneratorV3(registry.definitions).generateDocument(
+            config
+          );
+        }
+      };
+    },
+    register(registry, options) {
+      for (const method of ["get", "post", "put", "patch", "delete"] as const) {
+        for (const path of Object.keys(contract[method] ?? {})) {
+          register(contract, method, path, registry, options);
+        }
+      }
+      for (const [path, nodes] of node) {
+        for (const node of nodes) {
+          node.z.register(registry, {
+            pathPrefix: `${options?.pathPrefix ?? ""}/${path}`
+          });
+        }
+      }
+    },
     get(path, ...handlers) {
       return router.get(
         path,

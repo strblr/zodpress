@@ -127,7 +127,7 @@ curl localhost:3000/todo -H "Content-Type: application/json" -d '{ "title": 42 }
 Zodpress can generate an OpenAPI document from your contract. You're then free to serve it any way you want. It's also fully customizable if you need special OpenAPI fields, custom components, security schemes, etc. More on that in the docs. Below is a simple example featuring [swagger-ui-express](https://www.npmjs.com/package/swagger-ui-express):
 
 ```ts
-const openApiDocument = app.openapi().generate({
+const openApiDocument = app.z.openapi().generate({
   openapi: "3.0.0",
   info: {
     version: "1.0.0",
@@ -144,7 +144,7 @@ app.get("/openapi.json", (_, res) => {
 
 ### 4. Incremental adoption
 
-Zodpress is fully compatible with regular Express, because it is just regular Express with an extra `z` property. So regular `use`, `get`, `post`, `http.createServer(app)`, and everything you can imagine will work as expected and never cause any issues, either type-wise or at runtime. Zodpress solely lives under the `z` property of apps and routers. Converting a regular Express app basically just means swapping `express()` for `zodpress(contract)` and then gradually migrating your routes under `z`.
+Zodpress is fully compatible with regular Express, because it is just regular Express with an extra `z` property. So regular `use`, `get`, `post`, `http.createServer(app)`, and everything you can imagine will work as expected and never cause any issues, either type-wise or at runtime. Zodpress solely lives under the `z` property of apps and routers. Converting a regular Express app basically just means swapping `express()` for `zodpress(contract)` and then gradually migrating your routes under `z` or keeping a coexistence of both.
 
 ```ts
 const app = zodpress(contract);
