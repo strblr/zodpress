@@ -94,11 +94,7 @@ export type OpenAPIObjectConfig = Parameters<
 export type OpenAPIObject = ReturnType<OpenApiGeneratorV3["generateDocument"]>;
 
 export interface OpenAPIFactory {
-  registerComponent(
-    type: string,
-    name: string,
-    component: object
-  ): OpenAPIFactory;
+  with(callback: (registry: OpenAPIRegistry) => void): OpenAPIFactory;
   generate(config: OpenAPIObjectConfig): OpenAPIObject;
 }
 

@@ -74,8 +74,8 @@ function extend<Contract extends AnyContract>(
     const registry = new OpenAPIRegistry();
     router.register(registry, options);
     return {
-      registerComponent(type, name, component) {
-        registry.registerComponent(type as any, name, component);
+      with(callback) {
+        callback(registry);
         return this;
       },
       generate(config) {

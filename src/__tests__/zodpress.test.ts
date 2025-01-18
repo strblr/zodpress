@@ -221,10 +221,12 @@ describe("zodpress", () => {
     it("should register custom components", () => {
       const openApiDoc = app
         .openapi()
-        .registerComponent("securitySchemes", "apiKey", {
-          type: "apiKey",
-          in: "header",
-          name: "apiKey"
+        .with(reg => {
+          reg.registerComponent("securitySchemes", "apiKey", {
+            type: "apiKey",
+            in: "header",
+            name: "apiKey"
+          });
         })
         .generate({
           openapi: "3.0.0",
