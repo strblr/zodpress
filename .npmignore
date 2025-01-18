@@ -1,3 +1,4 @@
 src
 dist/__demo__
 dist/__tests__
+coverage
