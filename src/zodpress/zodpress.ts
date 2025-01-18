@@ -6,10 +6,10 @@ import {
   OpenAPIRegistry,
   type RouteConfig
 } from "@asteasolutions/zod-to-openapi";
+import { ValidationError } from "./error";
 import {
   addToSet,
   isZodpress,
-  isEmpty,
   openApiPath,
   castArray,
   buildParamsSchema
@@ -19,7 +19,6 @@ import type {
   AnyMethod,
   ZodpressApp,
   ZodpressRouter,
-  ValidationError,
   Zodpress,
   OpenAPIRegisterOptions
 } from "./types";
@@ -160,13 +159,13 @@ function validate(
   } = config;
 
   return (req, res, next) => {
-    const errors: ValidationError = {};
+    const error = new ValidationError();
     if (headers) {
       const result = headers.safeParse(req.headers);
       if (result.success) {
         req.headers = { ...req.headers, ...result.data };
       } else {
-        errors.headersErrors = result.error.issues;
+        error.headersErrors = result.error.issues;
       }
     }
     if (params) {
@@ -174,7 +173,7 @@ function validate(
       if (result.success) {
         req.params = result.data;
       } else {
-        errors.paramsErrors = result.error.issues;
+        error.paramsErrors = result.error.issues;
       }
     }
     if (query) {
@@ -182,7 +181,7 @@ function validate(
       if (result.success) {
         req.query = result.data;
       } else {
-        errors.queryErrors = result.error.issues;
+        error.queryErrors = result.error.issues;
       }
     }
     if (body && contentType === "application/json") {
@@ -190,17 +189,17 @@ function validate(
       if (result.success) {
         req.body = result.data;
       } else {
-        errors.bodyErrors = result.error.issues;
+        error.bodyErrors = result.error.issues;
       }
     }
-    if (isEmpty(errors)) {
+    if (error.isEmpty()) {
       next();
     } else if (typeof validationErrorPolicy === "function") {
-      validationErrorPolicy(errors, req, res, next);
+      validationErrorPolicy(error, req, res, next);
     } else if (validationErrorPolicy === "forward") {
-      next(errors);
+      next(error);
     } else {
-      res.status(400).send(errors);
+      res.status(400).json(error);
     }
   };
 }

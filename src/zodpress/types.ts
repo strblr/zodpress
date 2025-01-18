@@ -1,5 +1,5 @@
 import type * as core from "express-serve-static-core";
-import type { z, ZodIssue } from "zod";
+import type { z } from "zod";
 import type {
   OpenAPIRegistry,
   RouteConfig,
@@ -249,13 +249,6 @@ export type ResponseBody<ResponseMap extends Record<number, any>> =
   ResponseMap[ResponseCode<ResponseMap>];
 
 // Other
-
-export interface ValidationError {
-  headersErrors?: ZodIssue[];
-  paramsErrors?: ZodIssue[];
-  queryErrors?: ZodIssue[];
-  bodyErrors?: ZodIssue[];
-}
 
 export type inferContract<Router extends Zodpress<AnyContract>> =
   Router["_contract"];
