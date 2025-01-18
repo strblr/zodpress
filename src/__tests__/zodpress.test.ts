@@ -369,9 +369,6 @@ describe("zodpress", () => {
         get: {
           "/test": {
             tags: ["Route"],
-            openapi: {
-              tags: ["OpenAPI"]
-            },
             responses: { 200: z.void() }
           }
         }
@@ -385,11 +382,7 @@ describe("zodpress", () => {
         }
       });
 
-      expect(openApiDoc.paths["/test"].get?.tags).toEqual([
-        "Global",
-        "Route",
-        "OpenAPI"
-      ]);
+      expect(openApiDoc.paths["/test"].get?.tags).toEqual(["Global", "Route"]);
     });
 
     it("should handle custom content types", async () => {
@@ -418,11 +411,12 @@ describe("zodpress", () => {
       );
     });
 
-    it("should merge custom openapi request configuration", () => {
+    it("should merge custom openapi route configuration", () => {
       const router = zodpress.Router({
         get: {
           "/test": {
             responses: { 200: z.void() },
+            query: z.object({ id: z.string() }),
             openapi: {
               security: [{ apiKey: [] }],
               request: {
@@ -448,6 +442,11 @@ describe("zodpress", () => {
           security: [{ apiKey: [] }],
           parameters: [
             expect.objectContaining({
+              in: "query",
+              name: "id",
+              schema: { type: "string" }
+            }),
+            expect.objectContaining({
               in: "cookie",
               name: "my-cookie",
               schema: { type: "string" }
@@ -455,6 +454,39 @@ describe("zodpress", () => {
           ]
         })
       );
+    });
+
+    it("should override route configuration with openapi configuration", () => {
+      const router = zodpress.Router({
+        get: {
+          "/test": {
+            tags: ["Route"],
+            responses: {
+              200: z.string().describe("Description 1")
+            },
+            openapi: {
+              tags: ["OpenAPI"],
+              responses: {
+                200: {
+                  description: "Description 2"
+                }
+              }
+            }
+          }
+        }
+      });
+      const openApiDoc = router.z.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+
+      expect(openApiDoc.paths["/test"].get?.tags).toEqual(["OpenAPI"]);
+      expect(openApiDoc.paths["/test"].get?.responses[200]).toEqual({
+        description: "Description 2"
+      });
     });
   });
 

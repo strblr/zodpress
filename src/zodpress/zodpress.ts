@@ -239,27 +239,23 @@ function register(
   );
 
   registry.registerPath({
-    ...config.openapi,
     method,
     path: fullPath,
     summary: config.summary,
     description: config.description,
     deprecated: config.deprecated,
-    tags: [
-      ...castArray(contract.tags),
-      ...castArray(config.tags),
-      ...castArray(config.openapi?.tags)
-    ],
+    tags: [...castArray(contract.tags), ...castArray(config.tags)],
+    ...config.openapi,
     request: {
-      ...config.openapi?.request,
       headers: config.headers,
       params: config.params ?? buildParamsSchema(fullPath),
       query: config.query,
-      body
+      body,
+      ...config.openapi?.request
     },
     responses: {
-      ...config.openapi?.responses,
-      ...responses
+      ...responses,
+      ...config.openapi?.responses
     }
   });
 }
