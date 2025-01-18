@@ -17,7 +17,21 @@
   - [Request validation](#request-validation)
   - [OpenAPI support](#openapi-support)
   - [Incremental adoption](#incremental-adoption)
-- [Documentation](#documentation)
+- [Apps and routers](#apps-and-routers)
+  - [Contracts](#contracts)
+  - [Headers](#headers)
+  - [Path params](#path-params)
+  - [Query params](#query-params)
+  - [Request body](#request-body)
+  - [Responses](#responses)
+  - [Nested routers](#nested-routers)
+- [OpenAPI](#openapi)
+  - [Documents generation](#documents-generation)
+  - [Augmenting Zod](#augmenting-zod)
+  - [Tags](#tags)
+  - [Custom route fields](#custom-route-fields)
+  - [Custom components](#custom-components)
+- [Type helpers](#type-helpers)
 - [API reference](#api-reference)
 
 ## Installation
@@ -161,7 +175,15 @@ app.z.get("/todo/:id", (req, res) => {
 });
 ```
 
-## Documentation
+## Apps and routers
+
+(Coming soon)
+
+## OpenAPI
+
+(Coming soon)
+
+## Type helpers
 
 (Coming soon)
 
