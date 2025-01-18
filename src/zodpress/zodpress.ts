@@ -12,7 +12,8 @@ import {
   isZodpress,
   openApiPath,
   castArray,
-  buildParamsSchema
+  buildParamsSchema,
+  getContentType
 } from "./utils";
 import type {
   AnyContract,
@@ -151,8 +152,7 @@ function validate(
     headers,
     params,
     query,
-    body,
-    contentType = "application/json"
+    body
   } = config;
 
   return (req, res, next) => {
@@ -181,7 +181,7 @@ function validate(
         error.queryErrors = result.error.issues;
       }
     }
-    if (body && contentType === "application/json") {
+    if (body && getContentType(body) === "application/json") {
       const result = body.safeParse(req.body);
       if (result.success) {
         req.body = result.data;
@@ -215,15 +215,13 @@ function register(
   const fullPath = openApiPath(options?.pathPrefix, path);
 
   const body: Exclude<RouteConfig["request"], undefined>["body"] =
-    config.body || config.contentType
-      ? {
-          content: {
-            [config.contentType || "application/json"]: {
-              schema: config.body || z.any()
-            }
-          }
+    config.body && {
+      content: {
+        [getContentType(config.body)]: {
+          schema: config.body
         }
-      : undefined;
+      }
+    };
 
   const responses: RouteConfig["responses"] = Object.fromEntries(
     Object.entries(config.responses ?? {}).map(([status, response]) => [
@@ -233,11 +231,7 @@ function register(
         content:
           response instanceof z.ZodVoid
             ? undefined
-            : {
-                [response._def._zodpress?.contentType ?? "application/json"]: {
-                  schema: response
-                }
-              }
+            : { [getContentType(response)]: { schema: response } }
       }
     ])
   );

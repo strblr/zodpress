@@ -389,8 +389,7 @@ describe("zodpress", () => {
       const router = zodpress.Router({
         post: {
           "/text": {
-            contentType: "text/plain",
-            body: z.string(),
+            body: z.string().contentType("text/plain"),
             responses: { 200: z.string() }
           }
         }

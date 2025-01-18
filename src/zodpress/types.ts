@@ -35,7 +35,6 @@ export interface AnyConfig {
   params?: z.AnyZodObject;
   query?: z.AnyZodObject;
   body?: z.ZodTypeAny;
-  contentType?: string;
   responses?: {
     [status: number]: z.ZodTypeAny;
   };

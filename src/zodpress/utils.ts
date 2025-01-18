@@ -11,6 +11,10 @@ export function isZodpress(value: unknown): value is Zodpress<AnyContract> {
   );
 }
 
+export function getContentType(schema?: z.ZodTypeAny): string {
+  return schema?._def._zodpress?.contentType ?? "application/json";
+}
+
 export function openApiPath(...paths: (string | undefined)[]) {
   return ["/", ...paths]
     .map(p => p?.trim())

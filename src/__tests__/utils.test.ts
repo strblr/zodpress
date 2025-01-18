@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
+import { z } from "../zod";
 import {
   openApiPath,
   addToSet,
   isEmpty,
   castArray,
-  buildParamsSchema
+  buildParamsSchema,
+  getContentType
 } from "../zodpress/utils";
 
 describe("utils", () => {
@@ -40,6 +41,15 @@ describe("utils", () => {
       );
       expect(openApiPath("/orders{/:orderId}/items{/:itemId}")).toBe(
         "/orders/{orderId}/items/{itemId}"
+      );
+    });
+  });
+
+  describe("getContentType", () => {
+    it("should return the content type of a schema", () => {
+      expect(getContentType(z.string())).toBe("application/json");
+      expect(getContentType(z.string().contentType("text/plain"))).toBe(
+        "text/plain"
       );
     });
   });
