@@ -9,7 +9,10 @@ import type {
 // Contract
 
 export type AnyMethod = "get" | "post" | "put" | "patch" | "delete";
-export type AnyValidationErrorPolicy = "send" | "forward" | core.ErrorRequestHandler
+export type AnyValidationErrorPolicy =
+  | "send"
+  | "forward"
+  | core.ErrorRequestHandler;
 
 export type AnyContract = {
   tags?: string | string[];
@@ -22,6 +25,7 @@ export type AnyContract = {
 
 export interface AnyConfig {
   summary?: string;
+  description?: string;
   tags?: string | string[];
   openapi?: Partial<RouteConfig>;
   validationErrorPolicy?: AnyValidationErrorPolicy;

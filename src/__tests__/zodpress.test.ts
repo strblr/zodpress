@@ -10,6 +10,7 @@ describe("zodpress", () => {
     get: {
       "/items/:id": {
         summary: "Get item by ID",
+        description: "Get an item by its ID",
         responses: {
           200: z
             .object({
@@ -133,6 +134,7 @@ describe("zodpress", () => {
       expect(openApiDoc.paths["/api/items/{id}"].get).toEqual(
         expect.objectContaining({
           summary: "Get item by ID",
+          description: "Get an item by its ID",
           tags: ["Test API"],
           parameters: [
             expect.objectContaining({

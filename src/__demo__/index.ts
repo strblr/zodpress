@@ -21,6 +21,7 @@ const contract1 = zodpress.contract({
   get: {
     "/todos/:id": {
       summary: "Get a todo",
+      description: "Get a todo by its ID",
       params: z.object({
         id: z.coerce.number().describe("The ID of the todo")
       }),

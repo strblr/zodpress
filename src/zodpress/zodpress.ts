@@ -246,6 +246,7 @@ function register(
     method,
     path: fullPath,
     summary: config.summary,
+    description: config.description,
     tags: [
       ...castArray(contract.tags),
       ...castArray(config.tags),
