@@ -1,4 +1,5 @@
 import { expectTypeOf, describe, it, assertType } from "vitest";
+import type * as core from "express-serve-static-core";
 import { z } from "zod";
 import { zodpress } from "../zodpress/zodpress";
 import type {
@@ -11,7 +12,8 @@ import type {
   RequestBody,
   ResponseMap,
   ResponseCode,
-  ResponseBody
+  ResponseBody,
+  RequestHeaders
 } from "../zodpress/types";
 
 describe("type tests", () => {
@@ -20,6 +22,9 @@ describe("type tests", () => {
     validationErrorPolicy: "send",
     get: {
       "/users": {
+        headers: z.object({
+          "x-api-key": z.string()
+        }),
         query: z.object({
           page: z.number().optional(),
           limit: z.number().optional()
@@ -72,6 +77,16 @@ describe("type tests", () => {
     assertType<ZodpressApp<typeof contract>>(app);
     assertType<ZodpressRouter<typeof contract>>(router);
     expectTypeOf(app).toMatchTypeOf<typeof router>();
+  });
+
+  it("should properly infer request headers", () => {
+    expectTypeOf<
+      RequestHeaders<typeof contract, "get", "/users">
+    >().toEqualTypeOf<{ "x-api-key": string } & core.Request["headers"]>();
+
+    expectTypeOf<
+      RequestHeaders<typeof contract, "get", "/users/:id">
+    >().toEqualTypeOf<core.Request["headers"]>();
   });
 
   it("should properly infer path parameters", () => {

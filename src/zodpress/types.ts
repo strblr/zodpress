@@ -29,6 +29,7 @@ export interface AnyConfig {
   tags?: string | string[];
   openapi?: Partial<RouteConfig>;
   validationErrorPolicy?: AnyValidationErrorPolicy;
+  headers?: z.AnyZodObject;
   params?: z.AnyZodObject;
   query?: z.AnyZodObject;
   body?: z.ZodTypeAny;
@@ -108,6 +109,7 @@ export type RequestHandler<
   Method extends keyof Contract & AnyMethod,
   Path extends keyof Contract[Method] & string
 > = BaseRequestHandler<
+  RequestHeaders<Contract, Method, Path>,
   RequestParams<Contract, Method, Path>,
   RequestQuery<Contract, Method, Path>,
   RequestBody<Contract, Method, Path>,
@@ -115,15 +117,26 @@ export type RequestHandler<
 >;
 
 type BaseRequestHandler<
+  Headers,
   Params,
   Query,
   Body,
   ResMap extends Record<number, any>
 > = (
-  req: core.Request<Params, ResponseBody<ResMap>, Body, Query>,
+  req: BaseRequest<Headers, Params, Query, Body, ResMap>,
   res: BaseResponse<ResMap>,
   next: core.NextFunction
 ) => void | Promise<void>;
+
+type BaseRequest<
+  Headers,
+  Params,
+  Query,
+  Body,
+  ResMap extends Record<number, any>
+> = Omit<core.Request<Params, ResponseBody<ResMap>, Body, Query>, "headers"> & {
+  headers: Headers;
+};
 
 type BaseResponse<ResMap extends Record<number, any>> = Omit<
   core.Response<
@@ -137,6 +150,19 @@ type BaseResponse<ResMap extends Record<number, any>> = Omit<
     code: StatusCode
   ): BaseResponse<Pick<ResMap, StatusCode>>;
 };
+
+// Headers
+
+export type RequestHeaders<
+  Contract extends AnyContract,
+  Method extends keyof Contract & AnyMethod,
+  Path extends keyof Contract[Method] & string
+> = core.Request["headers"] &
+  (Contract[Method][Path] extends {
+    headers: infer Headers extends z.AnyZodObject;
+  }
+    ? z.infer<Headers>
+    : {});
 
 // Path parameters
 
@@ -225,6 +251,7 @@ export type ResponseBody<ResponseMap extends Record<number, any>> =
 // Other
 
 export interface ValidationError {
+  headersErrors?: ZodIssue[];
   paramsErrors?: ZodIssue[];
   queryErrors?: ZodIssue[];
   bodyErrors?: ZodIssue[];

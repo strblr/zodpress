@@ -52,7 +52,7 @@ describe("zodpress", () => {
     app.use("/api", router);
   });
 
-  describe("Contract creation and validation", () => {
+  describe("Contract creation", () => {
     it("should create a valid contract", () => {
       expect(contract).toBeDefined();
       expect(contract.tags).toBe("Test API");
@@ -117,6 +117,23 @@ describe("zodpress", () => {
         router.z.get("/items/123", () => {});
       }).toThrow();
     });
+
+    it("should let non-contract headers pass through", async () => {
+      const router = zodpress.Router({
+        get: { "/items": { headers: z.object({ "x-api-key": z.string() }) } }
+      });
+      router.z.get("/items", (req, res) => {
+        expect(req.headers["x-api-key"]).toBe("123");
+        expect(req.headers["x-api-key2"]).toBe("123");
+        res.end();
+      });
+      app.use("/v1", router);
+      await supertest(app)
+        .get("/v1/items")
+        .set("x-api-key", "123")
+        .set("x-api-key2", "123")
+        .expect(200);
+    });
   });
 
   describe("OpenAPI integration", () => {
@@ -161,6 +178,27 @@ describe("zodpress", () => {
           })
         })
       );
+    });
+
+    it("should generate correct headers schema", () => {
+      const router = zodpress.Router({
+        get: { "/items": { headers: z.object({ "x-api-key": z.string() }) } }
+      });
+      app.use("/v1", router);
+      const openApiDoc = app.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+      expect(openApiDoc.paths["/v1/items"].get?.parameters).toEqual([
+        expect.objectContaining({
+          in: "header",
+          name: "x-api-key",
+          schema: { type: "string" }
+        })
+      ]);
     });
 
     it("should generate empty response when z.void() is used", () => {
@@ -386,8 +424,8 @@ describe("zodpress", () => {
             openapi: {
               security: [{ apiKey: [] }],
               request: {
-                headers: z.object({
-                  "x-custom": z.string()
+                cookies: z.object({
+                  "my-cookie": z.string()
                 })
               }
             }
@@ -408,8 +446,8 @@ describe("zodpress", () => {
           security: [{ apiKey: [] }],
           parameters: [
             expect.objectContaining({
-              in: "header",
-              name: "x-custom",
+              in: "cookie",
+              name: "my-cookie",
               schema: { type: "string" }
             })
           ]
@@ -419,6 +457,27 @@ describe("zodpress", () => {
   });
 
   describe("Validation", () => {
+    it("should validate request headers", async () => {
+      const router = zodpress.Router({
+        get: {
+          "/items": { headers: z.object({ "x-api-key": z.string() }) }
+        }
+      });
+      router.z.get("/items", (_req, res) => {
+        res.end();
+      });
+      app.use("/v1", router);
+      await supertest(app).get("/v1/items").expect(400);
+      await supertest(app).get("/v1/items").set("X-Other", "123").expect(400);
+      await supertest(app).get("/v1/items").set("x-api-key", "123").expect(200);
+      await supertest(app).get("/v1/items").set("X-Api-Key", "123").expect(200);
+      await supertest(app)
+        .get("/v1/items")
+        .set("X-Api-Key", "123")
+        .set("X-Other", "123")
+        .expect(200);
+    });
+
     it("should validate request params", async () => {
       const router = zodpress.Router({
         get: {

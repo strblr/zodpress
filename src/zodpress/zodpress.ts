@@ -17,15 +17,11 @@ import {
 import type {
   AnyContract,
   AnyMethod,
-  RequestBody,
-  RequestQuery,
-  RequestHandler,
   ZodpressApp,
   ZodpressRouter,
   ValidationError,
   Zodpress,
-  OpenAPIRegisterOptions,
-  RequestParams
+  OpenAPIRegisterOptions
 } from "./types";
 
 export function zodpress<const Contract extends AnyContract>(
@@ -145,21 +141,18 @@ function extend<Contract extends AnyContract>(
   };
 }
 
-function validate<
-  Contract extends AnyContract,
-  Method extends keyof Contract & AnyMethod,
-  Path extends keyof Contract[Method] & string
->(
-  contract: Contract,
-  method: Method,
-  path: Path
-): RequestHandler<Contract, Method, Path> {
+function validate(
+  contract: AnyContract,
+  method: AnyMethod,
+  path: string
+): core.RequestHandler {
   const config = contract[method]?.[path];
   if (!config) {
     throw new Error(`Zodpress: No config found for <${method} ${path}>`);
   }
   const {
     validationErrorPolicy = contract.validationErrorPolicy ?? "send",
+    headers,
     params,
     query,
     body,
@@ -168,10 +161,18 @@ function validate<
 
   return (req, res, next) => {
     const errors: ValidationError = {};
+    if (headers) {
+      const result = headers.safeParse(req.headers);
+      if (result.success) {
+        req.headers = { ...req.headers, ...result.data };
+      } else {
+        errors.headersErrors = result.error.issues;
+      }
+    }
     if (params) {
       const result = params.safeParse(req.params);
       if (result.success) {
-        req.params = result.data as RequestParams<Contract, Method, Path>;
+        req.params = result.data;
       } else {
         errors.paramsErrors = result.error.issues;
       }
@@ -179,7 +180,7 @@ function validate<
     if (query) {
       const result = query.safeParse(req.query);
       if (result.success) {
-        req.query = result.data as RequestQuery<Contract, Method, Path>;
+        req.query = result.data;
       } else {
         errors.queryErrors = result.error.issues;
       }
@@ -187,7 +188,7 @@ function validate<
     if (body && contentType === "application/json") {
       const result = body.safeParse(req.body);
       if (result.success) {
-        req.body = result.data as RequestBody<Contract, Method, Path>;
+        req.body = result.data;
       } else {
         errors.bodyErrors = result.error.issues;
       }
@@ -199,7 +200,7 @@ function validate<
     } else if (validationErrorPolicy === "forward") {
       next(errors);
     } else {
-      (res as core.Response).status(400).send(errors);
+      res.status(400).send(errors);
     }
   };
 }
@@ -254,6 +255,7 @@ function register(
     ],
     request: {
       ...config.openapi?.request,
+      headers: config.headers,
       params: config.params ?? buildParamsSchema(fullPath),
       query: config.query,
       body

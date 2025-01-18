@@ -22,8 +22,11 @@ const contract1 = zodpress.contract({
     "/todos/:id": {
       summary: "Get a todo",
       description: "Get a todo by its ID",
+      headers: z.object({
+        "x-api-key": z.string().describe("The API key")
+      }),
       params: z.object({
-        id: z.coerce.number().describe("The ID of the todo")
+        id: z.string().transform(Number).describe("The ID of the todo")
       }),
       responses: {
         200: todoSchema,
@@ -78,10 +81,11 @@ const r2 = zodpress.Router(contract2);
 app.use(r1).use(r2);
 
 const getTodoHandler: inferHandler<typeof r1, "get", "/todos/:id"> = (
-  _req,
+  req,
   res
 ) => {
-  console.log(typeof _req.params.id);
+  console.log(typeof req.params.id);
+  console.log(req.headers);
   res.status(200).json({
     id: "1",
     title: "Todooo"
