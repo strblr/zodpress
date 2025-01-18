@@ -1,9 +1,9 @@
 {
   "name": "zodpress",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "author": "strblr",
   "license": "MIT",
-  "description": "",
+  "description": "Tiny superset of Express for strongly typed, contract-first API development. Supports OpenAPI, request validation, nested routers, and regular Express for incremental adoption.",
   "homepage": "https://github.com/strblr/zodpress",
   "bugs": {
     "url": "https://github.com/strblr/zodpress/issues"
