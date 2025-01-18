@@ -39,7 +39,7 @@ Zodpress ([zod](https://zod.dev/) + express) brings four key features to the tab
 
 Let's also add that it's extremely tiny (<2kb gzipped) and has 100% test coverage.
 
-### 1. Strongly typed Express
+### Strongly typed Express
 
 The cornerstone of Zodpress is a contract. In in, you define your endpoints, methods, request and response schemas, as well as other metadata like tags, summary, etc.
 
@@ -87,7 +87,7 @@ Here is a sample of what I mean by strongly typed:
 
 ![image](https://github.com/user-attachments/assets/fe8782b0-a609-40c8-a367-1f269ce7e1d8)
 
-### 2. Request validation
+### Request validation
 
 Headers, path params, query params, and request body will automatically be validated against Zod schemas defined in your contract. If there is a validation error, the default behavior is to send a 400 response with an error report. This behavior can be customized on a contract or route level. Simple example:
 
@@ -122,7 +122,7 @@ curl localhost:3000/todo -H "Content-Type: application/json" -d '{ "title": 42 }
 }
 ```
 
-### 3. OpenAPI support
+### OpenAPI support
 
 Zodpress can generate an OpenAPI document from your contract. You're then free to serve it any way you want. It's also fully customizable if you need special OpenAPI fields, custom components, security schemes, etc. More on that in the docs. Below is a simple example featuring [swagger-ui-express](https://www.npmjs.com/package/swagger-ui-express):
 
@@ -142,7 +142,7 @@ app.get("/openapi.json", (_, res) => {
 });
 ```
 
-### 4. Incremental adoption
+### Incremental adoption
 
 Zodpress is fully compatible with regular Express, because it is just regular Express with an extra `z` property. So regular `use`, `get`, `post`, `http.createServer(app)`, and everything you can imagine will work as expected and never cause any issues, either type-wise or at runtime. Zodpress solely lives under the `z` property of apps and routers. Converting a regular Express app basically just means swapping `express()` for `zodpress(contract)` and then gradually migrating your routes under `z` or keeping a coexistence of both.
 
