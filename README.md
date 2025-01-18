@@ -19,12 +19,13 @@
   - [Incremental adoption](#incremental-adoption)
 - [Apps and routers](#apps-and-routers)
   - [Contracts](#contracts)
+  - [Nested routers](#nested-routers)
   - [Headers](#headers)
   - [Path params](#path-params)
   - [Query params](#query-params)
   - [Request body](#request-body)
   - [Responses](#responses)
-  - [Nested routers](#nested-routers)
+  - [Content types](#content-types)
 - [OpenAPI](#openapi)
   - [Documents generation](#documents-generation)
   - [Augmenting Zod](#augmenting-zod)
@@ -44,9 +45,9 @@ npm install zodpress express zod @asteasolutions/zod-to-openapi
 
 ## Introduction
 
-Zodpress ([zod](https://zod.dev/) + express) brings four key features to the table:
+Zodpress ([zod](https://zod.dev/) + [express](https://expressjs.com/)) brings four key features to the table:
 
-1. **Strongly typed Express** - By defining an API contract, you get strongly typed request handlers. If typescript is happy, your API will be happy.
+1. **Strongly typed Express** - Define an API contract and get strongly typed request handlers. If typescript is happy, your API will be happy.
 2. **Request validation** - Zodpress validates requests against your contract using Zod. Support for headers, path params, query params, and body validation.
 3. **OpenAPI support** - Generate an OpenAPI document directly from your contracts, without duplicating your source of truth.
 4. **Incremental adoption** - Zodpress is fully compatible with regular Express. Zodpress apps and routers are just Express apps and routers plus a bit more.
