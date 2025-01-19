@@ -8,6 +8,10 @@
       name="description"
       content="Tiny superset of Express for strongly typed, contract-first API development. Supports OpenAPI, request validation, nested routers, and regular Express for incremental adoption."
     />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☃️</text></svg>"
+    />
     <title>Zodpress</title>
     <link
       href="https://fonts.googleapis.com/css?family=Inter"
@@ -29,12 +33,14 @@
         --color-code: #f3f3f3;
         --color-bg: #1e212a;
         --color-code-bg: #303446;
+        --max-width: 896px;
+        --font-family: "Inter", sans-serif;
       }
 
       body {
         margin: 0;
         padding: 0;
-        font-family: "Inter", sans-serif;
+        font-family: var(--font-family);
       }
 
       body,
@@ -50,7 +56,7 @@
       }
 
       .markdown-section {
-        max-width: 896px;
+        max-width: var(--max-width);
         margin: 0 auto;
         box-sizing: border-box;
         padding: 20px;
@@ -99,7 +105,6 @@
       };
     </script>
     <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
-
     <script src="//cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
     <script src="//cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
     <script src="//cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>

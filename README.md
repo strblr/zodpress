@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">Zodpress</h1>
+  <h1 align="center">☃️<br/>Zodpress</h1>
   <p align="center">
     <a href="https://strblr.github.io/zodpress">https://strblr.github.io/zodpress</a>
     <br/>
