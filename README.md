@@ -19,6 +19,8 @@
   </a>
 </p>
 
+## Table of contents
+
 - [Installation](#installation)
 - [Motivation](#motivation)
   - [Strongly typed Express](#strongly-typed-express)
