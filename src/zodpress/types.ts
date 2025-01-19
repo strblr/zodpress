@@ -2,8 +2,8 @@ import type * as core from "express-serve-static-core";
 import type { z } from "zod";
 import type {
   OpenAPIRegistry,
-  RouteConfig,
-  OpenApiGeneratorV3
+  OpenApiGeneratorV3,
+  RouteConfig as OpenApiRouteConfig
 } from "@asteasolutions/zod-to-openapi";
 
 // Contract
@@ -24,17 +24,17 @@ export type AnyContract = {
   };
 } & {
   [method in AnyMethod]?: {
-    [path: string]: AnyConfig;
+    [path: string]: AnyRouteConfig;
   };
 };
 
-export interface AnyConfig {
+export interface AnyRouteConfig {
   summary?: string;
   description?: string;
   deprecated?: boolean;
   tags?: string | string[];
   validationErrorPolicy?: AnyValidationErrorPolicy;
-  openapi?: Partial<RouteConfig>;
+  openapi?: Partial<OpenApiRouteConfig>;
   headers?: z.AnyZodObject;
   params?: z.AnyZodObject;
   query?: z.AnyZodObject;

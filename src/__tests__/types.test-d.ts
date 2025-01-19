@@ -4,7 +4,7 @@ import { z } from "zod";
 import { zodpress } from "../zodpress/zodpress";
 import type {
   AnyContract,
-  AnyConfig,
+  AnyRouteConfig,
   ZodpressApp,
   ZodpressRouter,
   RequestParams,
@@ -82,7 +82,7 @@ describe("type tests", () => {
     expectTypeOf(contract.validationErrorPolicy).toEqualTypeOf<"send">();
     expectTypeOf(contract.tags).toEqualTypeOf<["api"]>();
     expectTypeOf(contract.get).toMatchTypeOf<AnyContract["get"]>();
-    expectTypeOf(contract.get["/users"]).toMatchTypeOf<AnyConfig>();
+    expectTypeOf(contract.get["/users"]).toMatchTypeOf<AnyRouteConfig>();
     // @ts-expect-error
     assertType(contract.delete);
     // @ts-expect-error
