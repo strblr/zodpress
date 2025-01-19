@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta charset="UTF-8" />
+    <meta
+      name="description"
+      content="Tiny superset of Express for strongly typed, contract-first API development. Supports OpenAPI, request validation, nested routers, and regular Express for incremental adoption."
+    />
+    <title>Zodpress</title>
+    <link
+      href="https://fonts.googleapis.com/css?family=Inter"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="//cdn.jsdelivr.net/npm/docsify@4/themes/vue.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-okaidia.min.css"
+    />
+    <style>
+      :root {
+        --theme-color: #6c90f6;
+        --color-title: #fff;
+        --color-text: #d9d9d9;
+        --color-code: #f3f3f3;
+        --color-bg: #1e212a;
+        --color-code-bg: #303446;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Inter", sans-serif;
+      }
+
+      body,
+      blockquote,
+      .sidebar,
+      .sidebar ul li a {
+        color: var(--color-text);
+        background-color: var(--color-bg);
+      }
+
+      .sidebar-toggle {
+        background-color: hsl(223deg 18% 19% / 80%) !important;
+      }
+
+      .markdown-section {
+        max-width: 896px;
+        margin: 0 auto;
+        box-sizing: border-box;
+        padding: 20px;
+      }
+
+      .markdown-section pre {
+        border-radius: 8px;
+      }
+
+      .markdown-section pre,
+      .markdown-section code {
+        background-color: var(--color-code-bg);
+      }
+
+      .markdown-section pre > code,
+      .token.punctuation,
+      .token.property {
+        color: var(--color-code);
+      }
+
+      .markdown-section h1,
+      .markdown-section h2,
+      .markdown-section h3,
+      .markdown-section h4,
+      .markdown-section strong,
+      .anchor span {
+        color: var(--color-title);
+      }
+
+      p > img {
+        max-width: 100%;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      window.$docsify = {
+        name: "Zodpress",
+        repo: "strblr/zodpress",
+        maxLevel: 3,
+        auto2top: true,
+        routerMode: "/zodpress/",
+        homepage:
+          "https://raw.githubusercontent.com/strblr/zodpress/master/README.md"
+      };
+    </script>
+    <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  </body>
+</html>

@@ -1,7 +1,12 @@
-# Zodpress
-
-<p align="center">Tiny superset of Express for strongly typed, contract-first API development. Supports OpenAPI, request validation, nested routers, and regular Express for incremental adoption.</p>
-
+<p align="center">
+  <h1 align="center">Zodpress</h1>
+  <p align="center">
+    <a href="https://strblr.github.io/zodpress">https://strblr.github.io/zodpress</a>
+    <br/>
+    Tiny superset of Express for strongly typed, contract-first API development. Supports OpenAPI, request validation, nested routers, and regular Express for incremental adoption.
+  </p>
+</p>
+<br/>
 <p align="center">
   <a href="https://github.com/strblr/zodpress/blob/master/LICENSE">
     <img alt="License" src="https://img.shields.io/github/license/strblr/zodpress"/>
@@ -26,13 +31,14 @@
   - [Request body](#request-body)
   - [Responses](#responses)
   - [Content types](#content-types)
+  - [Type helpers](#type-helpers)
 - [OpenAPI](#openapi)
   - [Documents generation](#documents-generation)
   - [Augmenting Zod](#augmenting-zod)
   - [Tags](#tags)
   - [Custom route fields](#custom-route-fields)
   - [Custom components](#custom-components)
-- [Type helpers](#type-helpers)
+  - [Usage in frontend](#usage-in-frontend)
 - [API reference](#api-reference)
 
 ## Installation
@@ -52,7 +58,7 @@ Zodpress ([zod](https://zod.dev/) + [express](https://expressjs.com/)) brings fo
 3. **OpenAPI support** - Generate an OpenAPI document directly from your contracts, without duplicating your source of truth.
 4. **Incremental adoption** - Zodpress is fully compatible with regular Express. Zodpress apps and routers are just Express apps and routers plus a bit more.
 
-Let's also add that it's extremely tiny (<2kb gzipped) and has 100% test coverage.
+Let's also add that it's extremely tiny (2kb gzipped) and has 100% test coverage.
 
 ### Strongly typed Express
 
@@ -181,10 +187,6 @@ app.z.get("/todo/:id", (req, res) => {
 (Coming soon)
 
 ## OpenAPI
-
-(Coming soon)
-
-## Type helpers
 
 (Coming soon)
 
