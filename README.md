@@ -8,6 +8,9 @@
 </p>
 <br/>
 <p align="center">
+  <a href="https://www.npmjs.com/package/zodpress">
+    <img alt="Version" src="https://img.shields.io/npm/v/zodpress"/>
+  </a>
   <a href="https://github.com/strblr/zodpress/blob/master/LICENSE">
     <img alt="License" src="https://img.shields.io/github/license/strblr/zodpress"/>
   </a>
