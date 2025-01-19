@@ -20,7 +20,7 @@
 </p>
 
 - [Installation](#installation)
-- [Introduction](#introduction)
+- [Motivation](#motivation)
   - [Strongly typed Express](#strongly-typed-express)
   - [Request validation](#request-validation)
   - [OpenAPI support](#openapi-support)
@@ -43,8 +43,12 @@
   - [Custom components](#custom-components)
   - [Usage in frontend](#usage-in-frontend)
 - [API reference](#api-reference)
+  - [Contract](#contract)
+  - [Functions](#functions)
+  - [`z` property](#z-property)
+  - [Types](#types)
 
-## Installation
+# Installation
 
 Install Zodpress along with its peer dependencies:
 
@@ -52,7 +56,7 @@ Install Zodpress along with its peer dependencies:
 npm install zodpress express zod @asteasolutions/zod-to-openapi
 ```
 
-## Introduction
+# Motivation
 
 Zodpress ([zod](https://zod.dev/) + [express](https://expressjs.com/)) brings four key features to the table:
 
@@ -63,7 +67,7 @@ Zodpress ([zod](https://zod.dev/) + [express](https://expressjs.com/)) brings fo
 
 Let's also add that it's extremely tiny (2kb gzipped) and has 100% test coverage.
 
-### Strongly typed Express
+## Strongly typed Express
 
 The cornerstone of Zodpress is a contract. In in, you define your endpoints, methods, request and response schemas, as well as other metadata like tags, summary, etc.
 
@@ -105,7 +109,7 @@ Here is a sample of what I mean by strongly typed:
 
 ![image](https://github.com/user-attachments/assets/74429229-a2d4-4d24-a179-e101afd946cb)
 
-### Request validation
+## Request validation
 
 Headers, path params, query params, and request body will automatically be validated against Zod schemas defined in your contract. If there is a validation error, the default behavior is to send a 400 response with an error report. This behavior can be customized on a contract or route level. Simple example:
 
@@ -140,7 +144,7 @@ curl localhost:3000/todo -H "Content-Type: application/json" -d '{ "title": 42 }
 }
 ```
 
-### OpenAPI support
+## OpenAPI support
 
 Zodpress can generate an OpenAPI document from your contract. You're then free to serve it any way you want. It's also fully customizable if you need special OpenAPI fields, custom components, security schemes, etc. More on that in the docs. Below is a simple example featuring [swagger-ui-express](https://www.npmjs.com/package/swagger-ui-express):
 
@@ -160,7 +164,7 @@ app.get("/openapi.json", (_, res) => {
 });
 ```
 
-### Incremental adoption
+## Incremental adoption
 
 Zodpress is fully compatible with regular Express, because it is just regular Express with an extra `z` property. So regular `use`, `get`, `post`, `http.createServer(app)`, and everything you can imagine will work as expected and never cause any issues, either type-wise or at runtime. Zodpress solely lives under the `z` property of apps and routers. Converting a regular Express app basically just means swapping `express()` for `zodpress(contract)` and then gradually migrating your routes under `z` or keeping a coexistence of both.
 
@@ -185,14 +189,14 @@ app.z.get("/todo/:id", (req, res) => {
 });
 ```
 
-## Apps and routers
+# Apps and routers
 
 (Coming soon)
 
-## OpenAPI
+# OpenAPI
 
 (Coming soon)
 
-## API reference
+# API reference
 
 (Coming soon)
