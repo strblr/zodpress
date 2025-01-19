@@ -49,6 +49,7 @@
   - [Functions](#functions)
   - [`z` property](#z-property)
   - [Types](#types)
+- [Changelog](#changelog)
 
 ## Installation
 
@@ -65,7 +66,7 @@ Zodpress ([zod](https://zod.dev/) + [express](https://expressjs.com/)) brings fo
 1. **Strongly typed Express** - Define an API contract and get strongly typed request handlers. If typescript is happy, your API will be happy.
 2. **Request validation** - Zodpress validates requests against your contract using Zod. Support for headers, path params, query params, and body validation.
 3. **OpenAPI support** - Generate an OpenAPI document directly from your contracts, without duplicating your source of truth.
-4. **Incremental adoption** - Zodpress is fully compatible with regular Express. Zodpress apps and routers are just Express apps and routers plus a bit more.
+4. **Incremental adoption** - Zodpress is fully compatible with regular Express. Zodpress apps and routers are just Express apps and routers with a `z` property.
 
 Let's also add that it's extremely tiny (2kb gzipped) and has 100% test coverage.
 
@@ -183,7 +184,7 @@ app.get("/regular-route", (req, res) => {
 });
 
 app.z.get("/todo/:id", (req, res) => {
-  // Strongly typed zodpress
+  // Strongly typed zodpress 💪
   res.status(200).json({
     id: req.params.id,
     title: "Todo"
@@ -201,4 +202,82 @@ app.z.get("/todo/:id", (req, res) => {
 
 ## API reference
 
-(Coming soon)
+### Contract
+
+| Property                 | Type                                                     | Description                                             |
+| ------------------------ | -------------------------------------------------------- | ------------------------------------------------------- |
+| `deprecated?`            | `boolean`                                                | Mark all routes in the contract as deprecated           |
+| `tags?`                  | `string \| string[]`                                     | OpenAPI tags for all routes in the contract             |
+| `validationErrorPolicy?` | `"send" \| "forward" \| "ignore" \| ErrorRequestHandler` | Default validation error handling policy for all routes |
+| `commonResponses?`       | `{ [status: number]: ZodType }`                          | Common response schemas shared by all routes            |
+| `get?`                   | `{ [path: string]: RouteConfig }`                        | GET route configurations                                |
+| `post?`                  | `{ [path: string]: RouteConfig }`                        | POST route configurations                               |
+| `put?`                   | `{ [path: string]: RouteConfig }`                        | PUT route configurations                                |
+| `patch?`                 | `{ [path: string]: RouteConfig }`                        | PATCH route configurations                              |
+| `delete?`                | `{ [path: string]: RouteConfig }`                        | DELETE route configurations                             |
+
+Each route configuration accepts:
+
+| Property                 | Type                                                     | Description                              |
+| ------------------------ | -------------------------------------------------------- | ---------------------------------------- |
+| `summary?`               | `string`                                                 | Short summary of what the route does     |
+| `description?`           | `string`                                                 | Detailed description of the route        |
+| `deprecated?`            | `boolean`                                                | Mark this route as deprecated            |
+| `tags?`                  | `string \| string[]`                                     | OpenAPI tags for this route              |
+| `validationErrorPolicy?` | `"send" \| "forward" \| "ignore" \| ErrorRequestHandler` | Validation error handling for this route |
+| `openapi?`               | `Partial<OpenAPIRouteConfig>`                            | Additional OpenAPI configuration         |
+| `headers?`               | `ZodObject`                                              | Schema for validating request headers    |
+| `params?`                | `ZodObject`                                              | Schema for validating path parameters    |
+| `query?`                 | `ZodObject`                                              | Schema for validating query parameters   |
+| `body?`                  | `ZodType`                                                | Schema for validating request body       |
+| `responses?`             | `{ [status: number]: ZodType }`                          | Response schemas by status code          |
+
+### Functions
+
+| Function                                                       | Returns       | Description                                                                                                                                                                                                                           |
+| -------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `zodpress(contract: Contract)`                                 | `Application` | Creates an Express application with Zodpress features. The `contract` parameter defines the API contract for type-safety and OpenAPI generation.                                                                                      |
+| `zodpress.Router(contract: Contract, options?: RouterOptions)` | `Router`      | Creates an Express router with Zodpress features. The `contract` parameter defines the API contract for type-safety and OpenAPI generation. Takes standard Express router options.                                                    |
+| `zodpress.contract(contract: Contract)`                        | `Contract`    | Helper function to define a contract with proper type inference. Returns the contract as-is.                                                                                                                                          |
+| `extendZodWithZodpress(zod: typeof z)`                         | `void`        | Extends Zod with the `contentType()` method to specify custom content types for request/response schemas. Only needs to be called once. The `contentType()` method accepts a string like `"text/plain"` and returns a new Zod schema. |
+
+### `z` property
+
+The `z` property is available on Zodpress applications and routers, providing strongly typed routing (both at compile-time and runtime) and OpenAPI functionality:
+
+| Property/Method                                                         | Returns          | Description                                                                                                     |
+| ----------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| `contract`                                                              | `Contract`       | The contract used to create this router/app                                                                     |
+| `openapi(options?: OpenAPIRegisterOptions)`                             | `OpenAPIFactory` | Creates an OpenAPI factory for generating documentation. Options can include a `pathPrefix` string.             |
+| `register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions)` | `void`           | Registers this router/app's routes with a provided OpenAPI registry. Options can include a `pathPrefix` string. |
+| `get(path, ...handlers)`                                                | `this`           | Adds GET route handlers with full type safety based on contract                                                 |
+| `post(path, ...handlers)`                                               | `this`           | Adds POST route handlers with full type safety based on contract                                                |
+| `put(path, ...handlers)`                                                | `this`           | Adds PUT route handlers with full type safety based on contract                                                 |
+| `patch(path, ...handlers)`                                              | `this`           | Adds PATCH route handlers with full type safety based on contract                                               |
+| `delete(path, ...handlers)`                                             | `this`           | Adds DELETE route handlers with full type safety based on contract                                              |
+
+The `OpenAPIFactory` provides methods for customizing and generating OpenAPI documents:
+
+| Method                                                | Returns           | Description                                                                                                                                                                                                                                                     |
+| ----------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `with(callback: (registry: OpenAPIRegistry) => void)` | `this`            | Allows modifying the OpenAPI registry directly through a callback function. See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#the-registry).                                                                             |
+| `generate(config: OpenAPIDocumentConfig)`             | `OpenAPIDocument` | Generates the final OpenAPI JSON document. The config parameter accepts standard OpenAPI 3.0 document fields (`info`, `servers`, etc.). See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#generating-the-full-document). |
+
+### Types
+
+| Type                                     | Description                                                                               |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `RequestHandler<Contract, Method, Path>` | Type for request handlers, inferred from the contract                                     |
+| `RequestHeaders<Contract, Method, Path>` | Type for request headers, inferred from the contract                                      |
+| `RequestParams<Contract, Method, Path>`  | Type for request path parameters, inferred from the contract                              |
+| `RequestQuery<Contract, Method, Path>`   | Type for request query parameters, inferred from the contract                             |
+| `RequestBody<Contract, Method, Path>`    | Type for request body, inferred from the contract                                         |
+| `ResponseMap<Contract, Method, Path>`    | Type for response map, mapping status codes to response types, inferred from the contract |
+| `ResponseCode<ResponseMap>`              | Type for response status codes, inferred from the response map                            |
+| `ResponseBody<ResponseMap>`              | Type for response body, inferred from the response map                                    |
+| `inferContract<Router>`                  | Utility type to infer the contract from a Zodpress router or app                          |
+| `inferHandler<Router, Method, Path>`     | Utility type to infer the request handler type from a Zodpress router or app              |
+
+## Changelog
+
+See [CHANGELOG.md](https://github.com/strblr/zodpress/blob/master/CHANGELOG.md) for more information.

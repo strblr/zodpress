@@ -1,6 +1,6 @@
 import type {
-  RouteConfig as OpenApiRouteConfig,
-  ZodRequestBody
+  ZodRequestBody,
+  RouteConfig as OpenAPIRouteConfig
 } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import type { AnyContract, Zodpress } from "./types";
@@ -67,7 +67,7 @@ export function getBodySchema(body: z.ZodTypeAny): ZodRequestBody {
 
 export function getResponsesSchema(
   responses: Record<number, z.ZodTypeAny>
-): OpenApiRouteConfig["responses"] {
+): OpenAPIRouteConfig["responses"] {
   return Object.fromEntries(
     Object.entries(responses).map(([status, response]) => [
       status,

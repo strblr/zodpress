@@ -25,7 +25,7 @@ import type {
 } from "./types";
 
 export function zodpress<const Contract extends AnyContract>(
-  contract: Contract = {} as Contract
+  contract: Contract
 ) {
   const app = express() as ZodpressApp<Contract>;
   extend(app, contract);
@@ -33,7 +33,7 @@ export function zodpress<const Contract extends AnyContract>(
 }
 
 zodpress.Router = <const Contract extends AnyContract>(
-  contract: Contract = {} as Contract,
+  contract: Contract,
   options?: RouterOptions
 ) => {
   const router = express.Router(options) as ZodpressRouter<Contract>;

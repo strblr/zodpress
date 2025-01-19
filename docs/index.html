@@ -33,6 +33,7 @@
         --color-code: #f3f3f3;
         --color-bg: #1e212a;
         --color-code-bg: #303446;
+        --color-border: #797979;
         --max-width: 896px;
         --font-family: "Inter", sans-serif;
       }
@@ -41,6 +42,11 @@
         margin: 0;
         padding: 0;
         font-family: var(--font-family);
+      }
+
+      p > img {
+        max-width: 100%;
+        height: auto;
       }
 
       body,
@@ -62,13 +68,24 @@
         padding: 20px;
       }
 
+      .markdown-section h2 {
+        padding: 40px 0px 10px 0px;
+        border-bottom: 1px solid var(--color-border);
+      }
+
       .markdown-section pre {
         border-radius: 8px;
       }
 
-      .markdown-section pre,
-      .markdown-section code {
+      .markdown-section pre {
         background-color: var(--color-code-bg);
+      }
+
+      .markdown-section code {
+        margin: 0;
+        padding: 0;
+        background-color: transparent;
+        color: var(--theme-color);
       }
 
       .markdown-section pre > code,
@@ -86,9 +103,26 @@
         color: var(--color-title);
       }
 
-      p > img {
-        max-width: 100%;
-        height: auto;
+      .markdown-section em {
+        color: inherit;
+      }
+
+      .markdown-section thead > tr {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+      }
+
+      .markdown-section tr {
+        border-color: var(--color-border) !important;
+        background-color: transparent !important;
+      }
+
+      .markdown-section tr:hover {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+      }
+
+      .markdown-section td,
+      .markdown-section th {
+        border-color: var(--color-border) !important;
       }
     </style>
   </head>

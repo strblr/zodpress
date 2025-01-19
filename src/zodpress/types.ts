@@ -3,7 +3,7 @@ import type { z } from "zod";
 import type {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
-  RouteConfig as OpenApiRouteConfig
+  RouteConfig as OpenAPIRouteConfig
 } from "@asteasolutions/zod-to-openapi";
 
 // Contract
@@ -34,7 +34,7 @@ export interface AnyRouteConfig {
   deprecated?: boolean;
   tags?: string | string[];
   validationErrorPolicy?: AnyValidationErrorPolicy;
-  openapi?: Partial<OpenApiRouteConfig>;
+  openapi?: Partial<OpenAPIRouteConfig>;
   headers?: z.AnyZodObject;
   params?: z.AnyZodObject;
   query?: z.AnyZodObject;
@@ -88,15 +88,17 @@ export interface OpenAPIRegisterOptions {
   pathPrefix?: string;
 }
 
-export type OpenAPIObjectConfig = Parameters<
+export type OpenAPIDocumentConfig = Parameters<
   OpenApiGeneratorV3["generateDocument"]
 >[0];
 
-export type OpenAPIObject = ReturnType<OpenApiGeneratorV3["generateDocument"]>;
+export type OpenAPIDocument = ReturnType<
+  OpenApiGeneratorV3["generateDocument"]
+>;
 
 export interface OpenAPIFactory {
   with(callback: (registry: OpenAPIRegistry) => void): OpenAPIFactory;
-  generate(config: OpenAPIObjectConfig): OpenAPIObject;
+  generate(config: OpenAPIDocumentConfig): OpenAPIDocument;
 }
 
 // Request handler
