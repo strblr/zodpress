@@ -18,6 +18,9 @@ const createTodoSchema = z
 
 const contract1 = zodpress.contract({
   tags: "Contract 1",
+  commonResponses: {
+    401: z.literal("Unauthorized")
+  },
   get: {
     "/todos/:id": {
       summary: "Get a todo",

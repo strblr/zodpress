@@ -1,19 +1,19 @@
 import express, { type RouterOptions } from "express";
 import type * as core from "express-serve-static-core";
-import { z } from "zod";
 import {
   OpenApiGeneratorV3,
-  OpenAPIRegistry,
-  type RouteConfig
+  OpenAPIRegistry
 } from "@asteasolutions/zod-to-openapi";
 import { ValidationError } from "./error";
 import {
   addToSet,
   isZodpress,
-  openApiPath,
+  getOpenApiPath,
   castArray,
-  buildParamsSchema,
-  getContentType
+  getParamsSchema,
+  getContentType,
+  getResponsesSchema,
+  getBodySchema
 } from "./utils";
 import type {
   AnyContract,
@@ -212,47 +212,28 @@ function register(
   if (!config) {
     throw new Error(`Zodpress: No config found for <${method} ${path}>`);
   }
-  const fullPath = openApiPath(options?.pathPrefix, path);
-
-  const body: Exclude<RouteConfig["request"], undefined>["body"] =
-    config.body && {
-      content: {
-        [getContentType(config.body)]: {
-          schema: config.body
-        }
-      }
-    };
-
-  const responses: RouteConfig["responses"] = Object.fromEntries(
-    Object.entries(config.responses ?? {}).map(([status, response]) => [
-      status,
-      {
-        description: response.description ?? "",
-        content:
-          response instanceof z.ZodVoid
-            ? undefined
-            : { [getContentType(response)]: { schema: response } }
-      }
-    ])
-  );
+  const fullPath = getOpenApiPath(options?.pathPrefix, path);
 
   registry.registerPath({
     method,
     path: fullPath,
     summary: config.summary,
     description: config.description,
-    deprecated: config.deprecated,
+    deprecated: config.deprecated ?? contract.deprecated,
     tags: [...castArray(contract.tags), ...castArray(config.tags)],
     ...config.openapi,
     request: {
       headers: config.headers,
-      params: config.params ?? buildParamsSchema(fullPath),
+      params: config.params ?? getParamsSchema(fullPath),
       query: config.query,
-      body,
+      body: config.body && getBodySchema(config.body),
       ...config.openapi?.request
     },
     responses: {
-      ...responses,
+      ...getResponsesSchema({
+        ...contract.commonResponses,
+        ...config.responses
+      }),
       ...config.openapi?.responses
     }
   });

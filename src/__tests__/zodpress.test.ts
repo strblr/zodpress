@@ -201,23 +201,6 @@ describe("zodpress", () => {
       ]);
     });
 
-    it("should generate empty response when z.void() is used", () => {
-      const router = zodpress.Router({
-        get: { "/items": { responses: { 200: z.void() } } }
-      });
-      const openApiDoc = router.z.openapi().generate({
-        openapi: "3.0.0",
-        info: {
-          title: "Test API",
-          version: "1.0.0"
-        }
-      });
-      expect(openApiDoc.paths["/items"].get).toBeDefined();
-      expect(
-        openApiDoc.paths["/items"].get?.responses[200].content
-      ).toBeUndefined();
-    });
-
     it("should register custom components", () => {
       const openApiDoc = app.z
         .openapi()
@@ -432,6 +415,23 @@ describe("zodpress", () => {
       );
     });
 
+    it("should generate empty response when z.void() is used", () => {
+      const router = zodpress.Router({
+        get: { "/items": { responses: { 200: z.void() } } }
+      });
+      const openApiDoc = router.z.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+      expect(openApiDoc.paths["/items"].get).toBeDefined();
+      expect(
+        openApiDoc.paths["/items"].get?.responses[200].content
+      ).toBeUndefined();
+    });
+
     it("should merge custom openapi route configuration", () => {
       const router = zodpress.Router({
         get: {
@@ -508,6 +508,62 @@ describe("zodpress", () => {
       expect(openApiDoc.paths["/test"].get?.responses[200]).toEqual({
         description: "Description 2"
       });
+    });
+
+    it("should handle common responses", () => {
+      const router = zodpress.Router({
+        commonResponses: {
+          401: z.literal("Unauthorized").describe("Unauthorized description")
+        },
+        get: { "/items": { responses: { 200: z.string() } } }
+      });
+      const openApiDoc = router.z.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+      expect(openApiDoc.paths["/items"].get?.responses).toEqual({
+        200: expect.objectContaining({
+          content: {
+            "application/json": {
+              schema: { type: "string" }
+            }
+          }
+        }),
+        401: expect.objectContaining({
+          description: "Unauthorized description",
+          content: {
+            "application/json": {
+              schema: {
+                type: "string",
+                enum: ["Unauthorized"],
+                description: "Unauthorized description"
+              }
+            }
+          }
+        })
+      });
+    });
+
+    it("should override common responses with route responses", () => {
+      const router = zodpress.Router({
+        commonResponses: { 401: z.string() },
+        get: { "/items": { responses: { 401: z.number() } } }
+      });
+      const openApiDoc = router.z.openapi().generate({
+        openapi: "3.0.0",
+        info: {
+          title: "Test API",
+          version: "1.0.0"
+        }
+      });
+      expect(openApiDoc.paths["/items"].get?.responses[401]).toEqual(
+        expect.objectContaining({
+          content: { "application/json": { schema: { type: "number" } } }
+        })
+      );
     });
   });
 

@@ -52,6 +52,31 @@ describe("type tests", () => {
 
   const emptyRouteContract = zodpress.contract({ get: { "/users": {} } });
 
+  const contractWithCommonResponses = zodpress.contract({
+    commonResponses: {
+      401: z.literal("Unauthorized")
+    },
+    get: {
+      "/users": {
+        responses: {
+          200: z.object({ id: z.string(), name: z.string() }).array()
+        }
+      },
+      "/users/:id": {
+        responses: {
+          200: z.object({ id: z.string(), name: z.string() }),
+          404: z.object({ error: z.string() })
+        }
+      },
+      "/users/:id/posts": {
+        responses: {
+          200: z.object({ id: z.string(), title: z.string() }).array(),
+          401: z.literal("Unauthorized for this resource")
+        }
+      }
+    }
+  });
+
   it("should properly infer contract properties", () => {
     expectTypeOf(contract).toMatchTypeOf<AnyContract>();
     expectTypeOf(contract.validationErrorPolicy).toEqualTypeOf<"send">();
@@ -146,6 +171,28 @@ describe("type tests", () => {
     expectTypeOf<
       ResponseMap<typeof emptyRouteContract, "get", "/users">
     >().toEqualTypeOf<{}>();
+
+    expectTypeOf<
+      ResponseMap<typeof contractWithCommonResponses, "get", "/users">
+    >().toEqualTypeOf<{
+      401: "Unauthorized";
+      200: { id: string; name: string }[];
+    }>();
+
+    expectTypeOf<
+      ResponseMap<typeof contractWithCommonResponses, "get", "/users/:id">
+    >().toEqualTypeOf<{
+      404: { error: string };
+      401: "Unauthorized";
+      200: { id: string; name: string };
+    }>();
+
+    expectTypeOf<
+      ResponseMap<typeof contractWithCommonResponses, "get", "/users/:id/posts">
+    >().toEqualTypeOf<{
+      401: "Unauthorized for this resource";
+      200: { id: string; title: string }[];
+    }>();
   });
 
   it("should properly infer response code", () => {
@@ -160,6 +207,28 @@ describe("type tests", () => {
     expectTypeOf<
       ResponseCode<ResponseMap<typeof emptyRouteContract, "get", "/users">>
     >().toEqualTypeOf<never>();
+
+    expectTypeOf<
+      ResponseCode<
+        ResponseMap<typeof contractWithCommonResponses, "get", "/users">
+      >
+    >().toEqualTypeOf<200 | 401>();
+
+    expectTypeOf<
+      ResponseCode<
+        ResponseMap<typeof contractWithCommonResponses, "get", "/users/:id">
+      >
+    >().toEqualTypeOf<200 | 401 | 404>();
+
+    expectTypeOf<
+      ResponseCode<
+        ResponseMap<
+          typeof contractWithCommonResponses,
+          "get",
+          "/users/:id/posts"
+        >
+      >
+    >().toEqualTypeOf<200 | 401>();
   });
 
   it("should properly infer response body", () => {
@@ -174,5 +243,31 @@ describe("type tests", () => {
     expectTypeOf<
       ResponseBody<ResponseMap<typeof emptyRouteContract, "get", "/users">>
     >().toEqualTypeOf<never>();
+
+    expectTypeOf<
+      ResponseBody<
+        ResponseMap<typeof contractWithCommonResponses, "get", "/users">
+      >
+    >().toEqualTypeOf<{ id: string; name: string }[] | "Unauthorized">();
+
+    expectTypeOf<
+      ResponseBody<
+        ResponseMap<typeof contractWithCommonResponses, "get", "/users/:id">
+      >
+    >().toEqualTypeOf<
+      { id: string; name: string } | { error: string } | "Unauthorized"
+    >();
+
+    expectTypeOf<
+      ResponseBody<
+        ResponseMap<
+          typeof contractWithCommonResponses,
+          "get",
+          "/users/:id/posts"
+        >
+      >
+    >().toEqualTypeOf<
+      { id: string; title: string }[] | "Unauthorized for this resource"
+    >();
   });
 });

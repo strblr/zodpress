@@ -16,8 +16,12 @@ export type AnyValidationErrorPolicy =
   | core.ErrorRequestHandler;
 
 export type AnyContract = {
+  deprecated?: boolean;
   tags?: string | string[];
   validationErrorPolicy?: AnyValidationErrorPolicy;
+  commonResponses?: {
+    [status: number]: z.ZodTypeAny;
+  };
 } & {
   [method in AnyMethod]?: {
     [path: string]: AnyConfig;
@@ -29,8 +33,8 @@ export interface AnyConfig {
   description?: string;
   deprecated?: boolean;
   tags?: string | string[];
-  openapi?: Partial<RouteConfig>;
   validationErrorPolicy?: AnyValidationErrorPolicy;
+  openapi?: Partial<RouteConfig>;
   headers?: z.AnyZodObject;
   params?: z.AnyZodObject;
   query?: z.AnyZodObject;
@@ -229,11 +233,18 @@ export type ResponseMap<
   Contract extends AnyContract,
   Method extends keyof Contract & AnyMethod,
   Path extends keyof Contract[Method] & string
-> = Contract[Method][Path] extends {
-  responses: infer Responses extends Record<number, z.ZodTypeAny>;
-}
-  ? { [R in keyof Responses & number]: z.infer<Responses[R]> }
-  : {};
+> = Assign<
+  Contract extends {
+    commonResponses: infer Responses extends Record<number, z.ZodTypeAny>;
+  }
+    ? { [R in keyof Responses & number]: z.infer<Responses[R]> }
+    : {},
+  Contract[Method][Path] extends {
+    responses: infer Responses extends Record<number, z.ZodTypeAny>;
+  }
+    ? { [R in keyof Responses & number]: z.infer<Responses[R]> }
+    : {}
+>;
 
 export type ResponseCode<ResponseMap extends Record<number, any>> =
   keyof ResponseMap & number;
@@ -255,3 +266,5 @@ export type inferHandler<
 type Pretty<T> = {
   [K in keyof T]: T[K];
 };
+
+type Assign<T extends object, U extends object> = Pretty<Omit<T, keyof U> & U>;
