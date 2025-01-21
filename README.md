@@ -480,6 +480,9 @@ const app = zodpress({
 app.z.get("/todos/:id", (req, res) => {
   res.status(404).send("Not found"); // Ok
 
+  // Error: Argument of type 'Other' is not assignable to parameter of type 'Not found'
+  res.status(404).send("Other");
+
   res.status(200).send({ id: "1", title: "Todo" }); // Ok
 
   // Error: Argument of type string is not assignable to parameter of type { id: string; title: string; }
