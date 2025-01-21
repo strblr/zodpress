@@ -28,15 +28,19 @@
   - [OpenAPI support](#openapi-support)
   - [Incremental adoption](#incremental-adoption)
 - [Apps and routers](#apps-and-routers)
+  - [Creating apps](#creating-apps)
   - [Contracts](#contracts)
-  - [Nested routers](#nested-routers)
+  - [Request handlers](#request-handlers)
+  - [Routers](#routers)
   - [Headers](#headers)
   - [Path params](#path-params)
   - [Query params](#query-params)
   - [Request body](#request-body)
   - [Responses](#responses)
   - [Content types](#content-types)
-  - [Type helpers](#type-helpers)
+  - [Empty responses](#empty-responses)
+  - [Validation errors](#validation-errors)
+  - [Other metadata](#other-metadata)
 - [OpenAPI](#openapi)
   - [Documents generation](#documents-generation)
   - [Augmenting Zod](#augmenting-zod)
@@ -44,10 +48,17 @@
   - [Custom route fields](#custom-route-fields)
   - [Custom components](#custom-components)
   - [Usage in frontend](#usage-in-frontend)
+- [Recipes](#recipes)
+  - [Zod coercions](#zod-coercions)
+  - [Using buffers](#using-buffers)
+  - [Shared contracts](#shared-contracts)
+  - [Zodpress Router on vanilla Express](#zodpress-router-on-vanilla-express)
+- [Roadmap](#roadmap)
 - [API reference](#api-reference)
-  - [Contract](#contract)
-  - [Functions](#functions)
+  - [`zodpress`](#zodpress)
+  - [Contract interface](#contract-interface)
   - [`z` property](#z-property)
+  - [Utilities](#utilities)
   - [Types](#types)
 - [Changelog](#changelog)
 
@@ -169,7 +180,7 @@ app.get("/openapi.json", (_, res) => {
 
 ### Incremental adoption
 
-Zodpress is fully compatible with regular Express, because it is just regular Express with an extra `z` property. So regular `use`, `get`, `post`, `http.createServer(app)`, and everything you can imagine will work as expected and never cause any issues, either type-wise or at runtime. Zodpress solely lives under the `z` property of apps and routers. Converting a regular Express app basically just means swapping `express()` for `zodpress(contract)` and then gradually migrating your routes under `z` or keeping a coexistence of both.
+Zodpress is fully compatible with regular Express, because it is just regular Express with an extra `z` property. So regular `use`, `get`, `post`, `http.createServer(app)`, and everything you can imagine will work as expected. Zodpress-specific features live under the `z` property of apps and routers. Converting a regular Express app just means swapping `express()` for `zodpress(contract)` and gradually migrating your routes under `z` or keeping a coexistence of both.
 
 ```ts
 const app = zodpress(contract);
@@ -194,15 +205,317 @@ app.z.get("/todo/:id", (req, res) => {
 
 ## Apps and routers
 
-(Coming soon)
+### Creating apps
+
+To create an app, call the `zodpress` function where you would normally call `express()`, and pass it a contract:
+
+```ts
+import { zodpress } from "zodpress";
+
+const app = zodpress({
+  /* contract */
+});
+```
+
+All Zodpress does here is create an actual Express app, attach a `z` property to it and return the app. All features that are specific to this package live under `app.z`. Since `app` is just a regular Express app, you can use all the methods you already know:
+
+```ts
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static("public"));
+
+app.listen(3000, () => {
+  console.log("Server is running on port 3000");
+});
+```
+
+### Contracts
+
+Contracts are plain objects that define everything about your API, including routes, methods, request and response schemas, as well as other metadata like tags, summary, etc. They are the central piece of Zodpress. A contract is bound to an app or router instance. For modular servers with multiple routers, each router will have its own contract. Type-wise or runtime-wise, a contract does not affect anything outside of the app or router it is attached to.
+
+Out of the box, contracts enable:
+
+- Strongly typed request handlers
+- Request validation
+- Support for OpenAPI documents generation
+
+TypeScript needs to understand your contracts as deep object literals for type inference to work. It is therefore recommended to either pass them directly to `zodpress` / `zodpress.Router` or use the `zodpress.contract` helper function if you want to define them separately. This also ensures that they conform to the contract interface.
+
+```ts
+const contract = zodpress.contract({
+  /* contract */
+});
+
+const app = zodpress(contract);
+```
+
+A contract is split into **common config** and **route configs**. Here is a sample contract:
+
+```ts
+import { zodpress } from "zodpress";
+import { z } from "zod";
+
+const contract = zodpress.contract({
+  // Common config
+  tags: "todos",
+  commonResponses: {
+    500: z.literal("Internal error")
+  },
+  get: {
+    "/todos/:id": {
+      // Route config
+      summary: "Get a todo",
+      responses: {
+        404: z.literal("Not found"),
+        200: z.object({ id: z.string(), title: z.string() })
+      }
+    },
+    "/todos": {
+      // Route config
+      summary: "Get all todos",
+      query: z.object({
+        offset: z.number().optional(),
+        limit: z.number().optional()
+      }),
+      responses: {
+        200: z.array(z.object({ id: z.string(), title: z.string() }))
+      }
+    }
+  },
+  post: {
+    "/todos": {
+      // Route config
+      summary: "Create a todo",
+      headers: z.object({
+        authorization: z.string().regex(/^Bearer /)
+      }),
+      body: z.object({
+        title: z.string()
+      }),
+      responses: {
+        401: z.literal("Unauthorized"),
+        201: z.object({ id: z.string() })
+      }
+    }
+  }
+});
+```
+
+See the [API reference](#contract) for more information.
+
+### Request handlers
+
+Type-safe request handlers are added to your apps and routers by calling `app.z.get`, `app.z.post`, `app.z.put`, `app.z.patch`, or `app.z.delete` instead of the regular `app.get`, `app.post`, etc. (which still work as expected).
+
+```ts
+app.z.get("/todos/:id", (req, res) => {
+  res.status(200).json({
+    id: req.params.id,
+    title: "Todo"
+  });
+});
+```
+
+TypeScript will correctly infer the types of headers, path params, query params, request body, response codes and response bodies from your contract. At runtime, Zod will validate headers, path params, query params, and request body as long as they are defined in the contract.
+
+For modularity, you can define a request handler as a standalone function outside of an `app.z[method]` call. To infer the handler type from the app or router, use the `inferHandler` type helper. To infer it from the contract itself, use the `RequestHandler` type.
+
+```ts
+import type { inferHandler, RequestHandler } from "zodpress";
+
+const auth: inferHandler<typeof app, "post", "/todos"> = (req, res) => {
+  /* ... */
+};
+
+const createTodo: RequestHandler<typeof contract, "post", "/todos"> = () => {
+  /* ... */
+};
+
+app.z.post("/todos", auth, createTodo);
+```
+
+### Routers
+
+In Express, routers are used to create modular route handlers. Think of it as sub-apps. Similar to how you create apps, call the `zodpress.Router` function where you would normally call `express.Router()`, and pass it a contract:
+
+```ts
+const router = zodpress.Router({
+  /* contract */
+});
+```
+
+Like apps, routers have a `z` property for defining type-safe handlers. This allows you to split your API into multiple routers, each in its own file with its own contract. Each router's contract only needs to define its own routes - you don't need to include those routes in the main app's contract or any parent router's contract.
+
+```ts
+// user.api.ts
+const userRouter = zodpress.Router({
+  /* user contract */
+});
+
+// todo.api.ts
+const todoRouter = zodpress.Router({
+  /* todo contract */
+});
+
+// app.ts
+const app = zodpress({});
+app.use(express.json());
+app.use(userRouter);
+app.use(todoRouter);
+```
+
+### Headers
+
+To validate request headers, use the `headers` property of the route config in your contract. The schema has to be a Zod object. Since headers often contain many fields, most of which of lesser importance, validated headers are shallowly merged with existing ones to preserve runtime access to undeclared headers. This also means that it wouldn't make sense to use [`strict` object schemas](https://zod.dev/?id=strict) here. Headers schemas will also be used when generating OpenAPI documents.
+
+```ts
+const app = zodpress({
+  post: {
+    "/todos": {
+      headers: z.object({
+        authorization: z.string().regex(/^Bearer /)
+      })
+    }
+  }
+});
+
+app.z.post("/todos", (req, res) => {
+  const token = req.headers.authorization; // string
+  const other = req.headers.other; // string | string[] | undefined
+  // ...
+});
+```
+
+### Path params
+
+TypeScript will automatically infer path param types from the path itself:
+
+```ts
+app.z.get("/todos/:id", (req, res) => {
+  const id = req.params.id; // string
+  const other = req.params.other; // Error: Property 'other' does not exist on type...
+  // ...
+});
+```
+
+If you need to validate path params against a schema, you can use the `params` property. The schema has to be a Zod object and will be used when generating OpenAPI documents.
+
+```ts
+const app = zodpress({
+  get: {
+    "/todos/:id": {
+      params: z.object({ id: z.string().uuid() })
+    }
+  }
+});
+```
+
+### Query params
+
+Query params can be validated against a schema using the `query` property of the route config in your contract. The schema has to be a Zod object and will be used when generating OpenAPI documents.
+
+```ts
+const app = zodpress({
+  get: {
+    "/todos": {
+      query: z.object({
+        offset: z.string().optional(),
+        limit: z.string().optional()
+      })
+    }
+  }
+});
+
+app.z.get("/todos", (req, res) => {
+  const offset = req.query.offset; // string | undefined
+  const limit = req.query.limit; // string | undefined
+  const other = req.query.other; // Error: Property 'other' does not exist on type...
+  // ...
+});
+```
+
+### Request body
+
+To validate request bodies, use the `body` property in your route configs. The schema can be of any Zod type and will also be used when generating OpenAPI documents. For the latter, please refer to [zod-to-openapi's list of supported Zod types](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#supported-types).
+
+```ts
+const app = zodpress({
+  post: {
+    "/todos": {
+      body: z.object({ title: z.string().min(1) })
+    }
+  }
+});
+
+app.use(express.json()); // Don't forget this when dealing with JSON bodies
+
+app.z.post("/todos", (req, res) => {
+  const title = req.body.title; // string
+  const other = req.body.other; // Error: Property 'other' does not exist on type...
+  // ...
+});
+```
+
+### Responses
+
+Response schemas are not used for runtime validation, although it may become an option in the future. Their current purposes are:
+
+- Strong typing of status codes and response bodies in request handlers
+- Generating OpenAPI documents with response documentation
+
+Use the `responses` property in your route configs and map status codes to response schemas:
+
+```ts
+const app = zodpress({
+  get: {
+    "/todos/:id": {
+      responses: {
+        404: z.literal("Not found"),
+        200: z.object({ id: z.string(), title: z.string() })
+      }
+    }
+  }
+});
+
+app.z.get("/todos/:id", (req, res) => {
+  res.status(404).send("Not found"); // Ok
+
+  res.status(200).send({ id: "1", title: "Todo" }); // Ok
+
+  // Error: Argument of type string is not assignable to parameter of type { id: string; title: string; }
+  res.status(200).send("Not found");
+
+  // Error: Argument of type 201 is not assignable to parameter of type 200 | 404
+  res.status(201);
+});
+```
 
 ## OpenAPI
 
 (Coming soon)
 
+## Recipes
+
+(Coming soon)
+
+## Roadmap
+
+- Support for OpenAPI 3.1
+- Support for common headers (similar to `commonResponses`)
+- Support for content-type validation using `zodSchema.contentType()` metadata
+- Support for response body validation
+
 ## API reference
 
-### Contract
+### `zodpress`
+
+| Function                                                       | Returns       | Description                                                                                                                                                                        |
+| -------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `zodpress(contract: Contract)`                                 | `Application` | Creates an Express application with Zodpress features. The `contract` parameter defines the API contract for type-safety and OpenAPI generation.                                   |
+| `zodpress.Router(contract: Contract, options?: RouterOptions)` | `Router`      | Creates an Express router with Zodpress features. The `contract` parameter defines the API contract for type-safety and OpenAPI generation. Takes standard Express router options. |
+| `zodpress.contract(contract: Contract)`                        | `Contract`    | Helper function to define a contract with proper type inference. Returns the contract as-is.                                                                                       |
+
+### Contract interface
 
 | Property                 | Type                                                     | Description                                             |
 | ------------------------ | -------------------------------------------------------- | ------------------------------------------------------- |
@@ -216,7 +529,7 @@ app.z.get("/todo/:id", (req, res) => {
 | `patch?`                 | `{ [path: string]: RouteConfig }`                        | PATCH route configurations                              |
 | `delete?`                | `{ [path: string]: RouteConfig }`                        | DELETE route configurations                             |
 
-Each route configuration accepts:
+Each route config accepts:
 
 | Property                 | Type                                                     | Description                              |
 | ------------------------ | -------------------------------------------------------- | ---------------------------------------- |
@@ -232,18 +545,9 @@ Each route configuration accepts:
 | `body?`                  | `ZodType`                                                | Schema for validating request body       |
 | `responses?`             | `{ [status: number]: ZodType }`                          | Response schemas by status code          |
 
-### Functions
-
-| Function                                                       | Returns       | Description                                                                                                                                                                                                                           |
-| -------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `zodpress(contract: Contract)`                                 | `Application` | Creates an Express application with Zodpress features. The `contract` parameter defines the API contract for type-safety and OpenAPI generation.                                                                                      |
-| `zodpress.Router(contract: Contract, options?: RouterOptions)` | `Router`      | Creates an Express router with Zodpress features. The `contract` parameter defines the API contract for type-safety and OpenAPI generation. Takes standard Express router options.                                                    |
-| `zodpress.contract(contract: Contract)`                        | `Contract`    | Helper function to define a contract with proper type inference. Returns the contract as-is.                                                                                                                                          |
-| `extendZodWithZodpress(zod: typeof z)`                         | `void`        | Extends Zod with the `contentType()` method to specify custom content types for request/response schemas. Only needs to be called once. The `contentType()` method accepts a string like `"text/plain"` and returns a new Zod schema. |
-
 ### `z` property
 
-The `z` property is available on Zodpress applications and routers, providing strongly typed routing (both at compile-time and runtime) and OpenAPI functionality:
+The `z` property is available on Zodpress applications and routers.
 
 | Property/Method                                                         | Returns          | Description                                                                                                     |
 | ----------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -262,6 +566,12 @@ The `OpenAPIFactory` provides methods for customizing and generating OpenAPI doc
 | ----------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `with(callback: (registry: OpenAPIRegistry) => void)` | `this`            | Allows modifying the OpenAPI registry directly through a callback function. See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#the-registry).                                                                             |
 | `generate(config: OpenAPIDocumentConfig)`             | `OpenAPIDocument` | Generates the final OpenAPI JSON document. The config parameter accepts standard OpenAPI 3.0 document fields (`info`, `servers`, etc.). See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#generating-the-full-document). |
+
+### Utilities
+
+| Function                               | Returns | Description                                                                                                                                                                                                                           |
+| -------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `extendZodWithZodpress(zod: typeof z)` | `void`  | Extends Zod with the `contentType()` method to specify custom content types for request/response schemas. Only needs to be called once. The `contentType()` method accepts a string like `"text/plain"` and returns a new Zod schema. |
 
 ### Types
 

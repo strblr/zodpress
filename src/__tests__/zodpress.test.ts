@@ -599,7 +599,7 @@ describe("zodpress", () => {
         }
       });
       router.z.get("/items/:id", (_req, res) => {
-        res.sendStatus(200);
+        res.status(200).send();
       });
       app.use("/v1", router);
       await supertest(app).get("/v1/items/123").expect(200);
@@ -616,7 +616,7 @@ describe("zodpress", () => {
         }
       });
       router.z.get("/items", (_req, res) => {
-        res.sendStatus(200);
+        res.status(200).send();
       });
       app.use("/v1", router);
       await supertest(app).get("/v1/items?id=123").expect(200);
