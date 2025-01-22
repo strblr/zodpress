@@ -61,6 +61,7 @@
   - [Utilities](#utilities)
   - [Types](#types)
 - [Changelog](#changelog)
+- [License](#license)
 
 ## Installation
 
@@ -594,3 +595,7 @@ The `OpenAPIFactory` provides methods for customizing and generating OpenAPI doc
 ## Changelog
 
 See [CHANGELOG.md](https://github.com/strblr/zodpress/blob/master/CHANGELOG.md) for more information.
+
+## License
+
+[MIT](https://github.com/strblr/zodpress/blob/master/LICENSE)
