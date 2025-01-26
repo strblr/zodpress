@@ -37,20 +37,19 @@
   - [Query params](#query-params)
   - [Request body](#request-body)
   - [Responses](#responses)
-  - [Content types](#content-types)
   - [Empty responses](#empty-responses)
   - [Validation errors](#validation-errors)
-  - [Other metadata](#other-metadata)
 - [OpenAPI](#openapi)
   - [Documents generation](#documents-generation)
   - [Augmenting Zod](#augmenting-zod)
   - [Tags](#tags)
+  - [Content types](#content-types)
   - [Custom route fields](#custom-route-fields)
   - [Custom components](#custom-components)
   - [Usage in frontend](#usage-in-frontend)
 - [Recipes](#recipes)
   - [Zod coercions](#zod-coercions)
-  - [Using buffers](#using-buffers)
+  - [Non-JSON bodies](#non-json-bodies)
   - [Shared contracts](#shared-contracts)
   - [Zodpress Router on vanilla Express](#zodpress-router-on-vanilla-express)
 - [Roadmap](#roadmap)
@@ -58,6 +57,7 @@
   - [`zodpress`](#zodpress)
   - [Contract interface](#contract-interface)
   - [`z` property](#z-property)
+  - [`ValidationError`](#validationerror)
   - [Utilities](#utilities)
   - [Types](#types)
 - [Changelog](#changelog)
@@ -250,7 +250,7 @@ const contract = zodpress.contract({
 const app = zodpress(contract);
 ```
 
-A contract is split into **common config** and **route configs**. Here is a sample contract:
+A contract is composed of a **common config** and **route configs**. Here is an example:
 
 ```ts
 import { zodpress } from "zodpress";
@@ -367,7 +367,7 @@ app.use(todoRouter);
 
 ### Headers
 
-To validate request headers, use the `headers` property of the route config in your contract. The schema has to be a Zod object. Since headers often contain many fields, most of which of lesser importance, validated headers are shallowly merged with existing ones to preserve runtime access to undeclared headers. This also means that it wouldn't make sense to use [`strict` object schemas](https://zod.dev/?id=strict) here. Headers schemas will also be used when generating OpenAPI documents.
+To validate request headers, use the `headers` property of route configs in your contract. The schema has to be a Zod object. Since headers often contain many fields, most of which of lesser importance, validated headers are shallowly merged with existing ones to preserve runtime access to undeclared headers. This also means that it wouldn't make sense to use [`strict` object schemas](https://zod.dev/?id=strict) here unless you have a good reason.
 
 ```ts
 const app = zodpress({
@@ -394,12 +394,12 @@ TypeScript will automatically infer path param types from the path itself:
 ```ts
 app.z.get("/todos/:id", (req, res) => {
   const id = req.params.id; // string
-  const other = req.params.other; // Error: Property 'other' does not exist on type...
+  const other = req.params.other; // Error: Property 'other' does not exist [...]
   // ...
 });
 ```
 
-If you need to validate path params against a schema, you can use the `params` property. The schema has to be a Zod object and will be used when generating OpenAPI documents.
+If you need to validate path params against a schema, you can use the `params` property. The schema has to be a Zod object.
 
 ```ts
 const app = zodpress({
@@ -413,7 +413,7 @@ const app = zodpress({
 
 ### Query params
 
-Query params can be validated against a schema using the `query` property of the route config in your contract. The schema has to be a Zod object and will be used when generating OpenAPI documents.
+Query params can be validated against a schema using the `query` property of route configs in your contract. The schema has to be a Zod object.
 
 ```ts
 const app = zodpress({
@@ -430,14 +430,14 @@ const app = zodpress({
 app.z.get("/todos", (req, res) => {
   const offset = req.query.offset; // string | undefined
   const limit = req.query.limit; // string | undefined
-  const other = req.query.other; // Error: Property 'other' does not exist on type...
+  const other = req.query.other; // Error: Property 'other' does not exist [...]
   // ...
 });
 ```
 
 ### Request body
 
-To validate request bodies, use the `body` property in your route configs. The schema can be of any Zod type and will also be used when generating OpenAPI documents. For the latter, please refer to [zod-to-openapi's list of supported Zod types](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#supported-types).
+To validate request bodies, use the `body` property in your route configs. The schema can be of any Zod type. When generating OpenAPI documents, please refer to [zod-to-openapi's list of supported Zod types](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#supported-types).
 
 ```ts
 const app = zodpress({
@@ -452,14 +452,14 @@ app.use(express.json()); // Don't forget this when dealing with JSON bodies
 
 app.z.post("/todos", (req, res) => {
   const title = req.body.title; // string
-  const other = req.body.other; // Error: Property 'other' does not exist on type...
+  const other = req.body.other; // Error: Property 'other' does not exist [...]
   // ...
 });
 ```
 
 ### Responses
 
-Response schemas are not used for runtime validation, although it may become an option in the future. Their current purposes are:
+Response schemas are not used for runtime validation (yet at least). Their current purpose is twofold:
 
 - Strong typing of status codes and response bodies in request handlers
 - Generating OpenAPI documents with response documentation
@@ -489,8 +489,85 @@ app.z.get("/todos/:id", (req, res) => {
   // Error: Argument of type string is not assignable to parameter of type { id: string; title: string; }
   res.status(200).send("Not found");
 
+  // Argument of type { id: string; } is not assignable to parameter of type { id: string; title: string; }
+  res.status(200).json({ id: "1" });
+
   // Error: Argument of type 201 is not assignable to parameter of type 200 | 404
   res.status(201);
+});
+```
+
+If all the routes in your contract share common responses, you can define them in the common config under the `commonResponses` property:
+
+```ts
+const app = zodpress({
+  commonResponses: {
+    404: z.literal("Not found")
+  },
+  get: {
+    "/todos/:id": {
+      responses: {
+        200: z.object({ id: z.string(), title: z.string() })
+      }
+    }
+  }
+});
+
+app.z.get("/todos/:id", (req, res) => {
+  res.status(404).send("Not found"); // Ok
+  res.status(200).send({ id: "1", title: "Todo" }); // Ok
+});
+```
+
+### Empty responses
+
+To signal an empty response, use the `z.void()` schema. This will automatically infer the response body type as `void` and document it as empty when generating OpenAPI documents.
+
+```ts
+const app = zodpress({
+  delete: {
+    "/todos/:id": {
+      responses: {
+        204: z.void()
+      }
+    }
+  }
+});
+```
+
+### Validation errors
+
+When defining either headers, path params, query params, or request body schemas, Zodpress will validate the content of the request against these schemas before calling your route handlers. If validation fails, a [`ValidationError`](#validationerror) is created containing all the errors. What happens next depends on the `validationErrorPolicy` option. This option can be set as a common config or a route config. Keep in mind that route configs take precedence over the common config. Here are the possible values:
+
+- `"send"`: The error is sent back to the client as a JSON response with a 400 status code. This is the default behavior.
+- `"forward"`: The error is forwarded to the next error handler Express finds (internally it does `next(error)`). Useful when you have a custom error handler somewhere else in your app.
+- `"ignore"`: The error is ignored. Useful when debugging.
+- `ErrorRequestHandler`: A custom error handler is called. The function will receive the following arguments: error, request, response, next function.
+
+Example:
+
+```ts
+const app = zodpress({
+  validationErrorPolicy: "forward",
+  get: {
+    "/todos/:id": {
+      params: z.object({
+        id: z.string().uuid()
+      })
+    }
+  }
+});
+
+app.z.get("/todos/:id", (req, res) => {
+  // ...
+});
+
+app.use((err, req, res, next) => {
+  if (err instanceof ValidationError) {
+    res.status(400).json(err);
+  } else {
+    next(err);
+  }
 });
 ```
 
@@ -506,8 +583,8 @@ app.z.get("/todos/:id", (req, res) => {
 
 - Support for OpenAPI 3.1
 - Support for common headers (similar to `commonResponses`)
-- Support for content-type validation using `zodSchema.contentType()` metadata
-- Support for response body validation
+- Support for content-type header validation using `zodSchema.contentType()` metadata [maybe]
+- Automatically document response code 400 in OpenAPI documents for validated routes
 
 ## API reference
 
@@ -555,7 +632,7 @@ The `z` property is available on Zodpress applications and routers.
 
 | Property/Method                                                         | Returns          | Description                                                                                                     |
 | ----------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------- |
-| `contract`                                                              | `Contract`       | The contract used to create this router/app                                                                     |
+| `contract`                                                              | `Contract`       | The contract bound to this router/app                                                                           |
 | `openapi(options?: OpenAPIRegisterOptions)`                             | `OpenAPIFactory` | Creates an OpenAPI factory for generating documentation. Options can include a `pathPrefix` string.             |
 | `register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions)` | `void`           | Registers this router/app's routes with a provided OpenAPI registry. Options can include a `pathPrefix` string. |
 | `get(path, ...handlers)`                                                | `this`           | Adds GET route handlers with full type safety based on contract                                                 |
@@ -570,6 +647,18 @@ The `OpenAPIFactory` provides methods for customizing and generating OpenAPI doc
 | ----------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `with(callback: (registry: OpenAPIRegistry) => void)` | `this`            | Allows modifying the OpenAPI registry directly through a callback function. See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#the-registry).                                                                             |
 | `generate(config: OpenAPIDocumentConfig)`             | `OpenAPIDocument` | Generates the final OpenAPI JSON document. The config parameter accepts standard OpenAPI 3.0 document fields (`info`, `servers`, etc.). See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#generating-the-full-document). |
+
+### `ValidationError`
+
+The `ValidationError` class extends the standard `Error` class and is used to represent validation errors.
+
+| Method           | Returns      | Description                                    |
+| ---------------- | ------------ | ---------------------------------------------- |
+| `isEmpty()`      | `boolean`    | Returns true if it doesn't contain any errors. |
+| `headersErrors?` | `ZodIssue[]` | Array of validation errors for headers         |
+| `paramsErrors?`  | `ZodIssue[]` | Array of validation errors for path params     |
+| `queryErrors?`   | `ZodIssue[]` | Array of validation errors for query params    |
+| `bodyErrors?`    | `ZodIssue[]` | Array of validation errors for request body    |
 
 ### Utilities
 

@@ -176,39 +176,39 @@ export function demo1() {
 }
 
 export function demo2() {
-  const commonContract = zodpress.contract({
-    tags: "Common"
-  });
-
   const app = zodpress({
-    ...commonContract,
-    get: {
-      "/bar": {
-        body: z.any(),
+    post: {
+      "/todos/:id": {
+        body: z.instanceof(Buffer).contentType("application/octet-stream"),
         responses: {
-          404: z.literal("Not found"),
-          200: z.object({
-            id: z.string(),
-            title: z.string()
-          })
+          204: z.void()
         }
       }
     }
   });
 
-  app.z.get(
-    "/bar",
-    express.raw(),
-    (_req, _res, next) => {
-      next();
+  app.use(express.raw());
+
+  app.z.post("/todos/:id", (req, res) => {
+    console.log({
+      body: req.body,
+      isBuffer: req.body instanceof Buffer,
+      contentType: req.get("content-type")
+    });
+    res.status(204).send();
+  });
+
+  const document = app.z.openapi().generate({
+    openapi: "3.0.0",
+    info: {
+      version: "2.0.0",
+      title: "My API",
+      description: "This is the API"
     },
-    (_req, res) => {
-      res.status(200).send({
-        id: "1",
-        title: "Todo"
-      });
-    }
-  );
+    servers: [{ url: "http://localhost:3000" }]
+  });
+
+  app.use("/docs", swagger.serve, swagger.setup(document));
 
   app.listen(3000, () => {
     console.log("Server is running on port 3000");
