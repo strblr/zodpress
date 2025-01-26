@@ -40,10 +40,12 @@
   - [Empty responses](#empty-responses)
   - [Validation errors](#validation-errors)
 - [OpenAPI](#openapi)
-  - [Documents generation](#documents-generation)
-  - [Augmenting Zod](#augmenting-zod)
+  - [Generating documents](#generating-documents)
+  - [Descriptions](#descriptions)
   - [Tags](#tags)
   - [Content types](#content-types)
+  - [Nested routers](#nested-routers)
+  - [Custom schema fields](#custom-schema-fields)
   - [Custom route fields](#custom-route-fields)
   - [Custom components](#custom-components)
   - [Usage in frontend](#usage-in-frontend)
@@ -51,7 +53,6 @@
   - [Zod coercions](#zod-coercions)
   - [Non-JSON bodies](#non-json-bodies)
   - [Shared contracts](#shared-contracts)
-  - [Zodpress Router on vanilla Express](#zodpress-router-on-vanilla-express)
 - [Roadmap](#roadmap)
 - [API reference](#api-reference)
   - [`zodpress`](#zodpress)
@@ -497,7 +498,7 @@ app.z.get("/todos/:id", (req, res) => {
 });
 ```
 
-If all the routes in your contract share common responses, you can define them in the common config under the `commonResponses` property:
+If all the routes in your contract share common responses, you can define them in the common config under the `commonResponses` property. If a route response overrides a common response, the route response takes precedence for that route.
 
 ```ts
 const app = zodpress({
