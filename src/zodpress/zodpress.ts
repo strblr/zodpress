@@ -11,7 +11,6 @@ import {
   getOpenApiPath,
   castArray,
   getParamsSchema,
-  getContentType,
   getResponsesSchema,
   getBodySchema
 } from "./utils";
@@ -181,7 +180,7 @@ function validate(
         error.queryErrors = result.error.issues;
       }
     }
-    if (body && getContentType(body) === "application/json") {
+    if (body) {
       const result = body.safeParse(req.body);
       if (result.success) {
         req.body = result.data;

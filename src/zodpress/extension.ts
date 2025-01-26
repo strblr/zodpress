@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 
 export function extendZodWithZodpress(zod: typeof z) {
   if (typeof zod.ZodType.prototype.contentType !== "undefined") {
