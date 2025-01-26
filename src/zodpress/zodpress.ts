@@ -2,6 +2,7 @@ import express, { type RouterOptions } from "express";
 import type * as core from "express-serve-static-core";
 import {
   OpenApiGeneratorV3,
+  OpenApiGeneratorV31,
   OpenAPIRegistry
 } from "@asteasolutions/zod-to-openapi";
 import { ValidationError } from "./error";
@@ -59,6 +60,13 @@ function extend<Contract extends AnyContract>(
     return handlers;
   };
 
+  const prepareDefinitions = (options?: OpenAPIRegisterOptions) => {
+    const registry = new OpenAPIRegistry();
+    router.z.openapi.register(registry, options);
+    options?.with?.(registry);
+    return registry.definitions;
+  };
+
   router.use = (path: any, ...handlers: any[]) => {
     if (typeof path === "string") {
       registerNodes(path, handlers);
@@ -70,33 +78,36 @@ function extend<Contract extends AnyContract>(
 
   router.z = {
     contract,
-    openapi(options) {
-      const registry = new OpenAPIRegistry();
-      router.z.register(registry, options);
-      return {
-        with(callback) {
-          callback(registry);
-          return this;
-        },
-        generate(config) {
-          return new OpenApiGeneratorV3(registry.definitions).generateDocument(
-            config
-          );
+    openapi: {
+      register(registry, options) {
+        for (const method of [
+          "get",
+          "post",
+          "put",
+          "patch",
+          "delete"
+        ] as const) {
+          for (const path of Object.keys(contract[method] ?? {})) {
+            register(contract, method, path, registry, options);
+          }
         }
-      };
-    },
-    register(registry, options) {
-      for (const method of ["get", "post", "put", "patch", "delete"] as const) {
-        for (const path of Object.keys(contract[method] ?? {})) {
-          register(contract, method, path, registry, options);
+        for (const [path, nodes] of node) {
+          for (const node of nodes) {
+            node.z.openapi.register(registry, {
+              pathPrefix: `${options?.pathPrefix ?? ""}/${path}`
+            });
+          }
         }
-      }
-      for (const [path, nodes] of node) {
-        for (const node of nodes) {
-          node.z.register(registry, {
-            pathPrefix: `${options?.pathPrefix ?? ""}/${path}`
-          });
-        }
+      },
+      generate(config, options) {
+        return new OpenApiGeneratorV3(
+          prepareDefinitions(options)
+        ).generateDocument(config);
+      },
+      generateV31(config, options) {
+        return new OpenApiGeneratorV31(
+          prepareDefinitions(options)
+        ).generateDocument(config);
       }
     },
     get(path, ...handlers) {

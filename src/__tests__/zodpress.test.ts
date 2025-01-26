@@ -138,7 +138,7 @@ describe("zodpress", () => {
 
   describe("OpenAPI integration", () => {
     it("should generate valid open api documentation", () => {
-      const openApiDoc = app.z.openapi().generate({
+      const openApiDoc = app.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -185,7 +185,7 @@ describe("zodpress", () => {
         get: { "/items": { headers: z.object({ "x-api-key": z.string() }) } }
       });
       app.use("/v1", router);
-      const openApiDoc = app.z.openapi().generate({
+      const openApiDoc = app.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -202,22 +202,24 @@ describe("zodpress", () => {
     });
 
     it("should register custom components", () => {
-      const openApiDoc = app.z
-        .openapi()
-        .with(reg => {
-          reg.registerComponent("securitySchemes", "apiKey", {
-            type: "apiKey",
-            in: "header",
-            name: "apiKey"
-          });
-        })
-        .generate({
+      const openApiDoc = app.z.openapi.generate(
+        {
           openapi: "3.0.0",
           info: {
             title: "Test API",
             version: "1.0.0"
           }
-        });
+        },
+        {
+          with: reg => {
+            reg.registerComponent("securitySchemes", "apiKey", {
+              type: "apiKey",
+              in: "header",
+              name: "apiKey"
+            });
+          }
+        }
+      );
 
       expect(openApiDoc.components?.securitySchemes?.apiKey).toEqual({
         type: "apiKey",
@@ -258,7 +260,7 @@ describe("zodpress", () => {
         }
       });
 
-      const openApiDoc = router.z.openapi().generate({
+      const openApiDoc = router.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -322,7 +324,7 @@ describe("zodpress", () => {
         get: { "/items": undefined }
       } as {});
       expect(() =>
-        router.z.openapi().generate({
+        router.z.openapi.generate({
           openapi: "3.0.0",
           info: {
             title: "Test API",
@@ -336,13 +338,16 @@ describe("zodpress", () => {
       const router = zodpress.Router({
         get: { "/items": { responses: { 200: z.void() } } }
       });
-      const openApiDoc = router.z.openapi({ pathPrefix: "/v1" }).generate({
-        openapi: "3.0.0",
-        info: {
-          title: "Test API",
-          version: "1.0.0"
-        }
-      });
+      const openApiDoc = router.z.openapi.generate(
+        {
+          openapi: "3.0.0",
+          info: {
+            title: "Test API",
+            version: "1.0.0"
+          }
+        },
+        { pathPrefix: "/v1" }
+      );
       expect(openApiDoc.paths["/v1/items"].get).toBeDefined();
     });
 
@@ -357,7 +362,7 @@ describe("zodpress", () => {
         }
       });
 
-      const openApiDoc = router.z.openapi().generate({
+      const openApiDoc = router.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -378,7 +383,7 @@ describe("zodpress", () => {
         }
       });
 
-      const openApiDoc = router.z.openapi().generate({
+      const openApiDoc = router.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -400,7 +405,7 @@ describe("zodpress", () => {
         }
       });
 
-      const openApiDoc = router.z.openapi().generate({
+      const openApiDoc = router.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -419,7 +424,7 @@ describe("zodpress", () => {
       const router = zodpress.Router({
         get: { "/items": { responses: { 200: z.void() } } }
       });
-      const openApiDoc = router.z.openapi().generate({
+      const openApiDoc = router.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -450,7 +455,7 @@ describe("zodpress", () => {
         }
       });
 
-      const openApiDoc = router.z.openapi().generate({
+      const openApiDoc = router.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -496,7 +501,7 @@ describe("zodpress", () => {
           }
         }
       });
-      const openApiDoc = router.z.openapi().generate({
+      const openApiDoc = router.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -517,7 +522,7 @@ describe("zodpress", () => {
         },
         get: { "/items": { responses: { 200: z.string() } } }
       });
-      const openApiDoc = router.z.openapi().generate({
+      const openApiDoc = router.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -552,7 +557,7 @@ describe("zodpress", () => {
         commonResponses: { 401: z.string() },
         get: { "/items": { responses: { 401: z.number() } } }
       });
-      const openApiDoc = router.z.openapi().generate({
+      const openApiDoc = router.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",
@@ -564,6 +569,50 @@ describe("zodpress", () => {
           content: { "application/json": { schema: { type: "number" } } }
         })
       );
+    });
+
+    it("should generate OpenAPI v3.1 documentation with custom components", () => {
+      const router = zodpress.Router({
+        get: {
+          "/items": {
+            responses: {
+              200: z.string()
+            }
+          }
+        }
+      });
+      const openApiDoc = router.z.openapi.generateV31(
+        {
+          openapi: "3.1.0",
+          info: {
+            title: "Test API",
+            version: "1.0.0"
+          }
+        },
+        {
+          with: registry => {
+            registry.registerComponent("securitySchemes", "apiKey", {
+              type: "apiKey",
+              in: "header",
+              name: "apiKey"
+            });
+          }
+        }
+      );
+      expect(openApiDoc.paths?.["/items"]?.get?.responses?.[200]).toEqual(
+        expect.objectContaining({
+          content: {
+            "application/json": {
+              schema: { type: "string" }
+            }
+          }
+        })
+      );
+      expect(openApiDoc.components?.securitySchemes?.apiKey).toEqual({
+        type: "apiKey",
+        in: "header",
+        name: "apiKey"
+      });
     });
   });
 
@@ -787,7 +836,7 @@ describe("zodpress", () => {
       app.use("/api/v1", apiRouter);
 
       // Generate OpenAPI documentation
-      const openApiDoc = app.z.openapi().generate({
+      const openApiDoc = app.z.openapi.generate({
         openapi: "3.0.0",
         info: {
           title: "Test API",

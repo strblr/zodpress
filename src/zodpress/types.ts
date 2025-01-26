@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
+  OpenApiGeneratorV31,
   RouteConfig as OpenAPIRouteConfig
 } from "@asteasolutions/zod-to-openapi";
 
@@ -57,8 +58,7 @@ export interface ZodpressRouter<Contract extends AnyContract>
 export interface Zodpress<Contract extends AnyContract, ReturnType = any> {
   z: {
     contract: Contract;
-    openapi(options?: OpenAPIRegisterOptions): OpenAPIFactory;
-    register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions): void;
+    openapi: ZodpressOpenAPI;
     get<Path extends keyof Contract["get"] & string>(
       path: Path,
       ...handlers: RequestHandler<Contract, "get", Path>[]
@@ -84,22 +84,38 @@ export interface Zodpress<Contract extends AnyContract, ReturnType = any> {
 
 // OpenAPI
 
+export interface ZodpressOpenAPI {
+  register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions): void;
+  generate(
+    config: OpenAPIDocumentConfig,
+    options?: OpenAPIRegisterOptions
+  ): OpenAPIDocument;
+  generateV31(
+    config: OpenAPIDocumentConfigV31,
+    options?: OpenAPIRegisterOptions
+  ): OpenAPIDocumentV31;
+}
+
 export interface OpenAPIRegisterOptions {
   pathPrefix?: string;
+  with?(registry: OpenAPIRegistry): void;
 }
 
 export type OpenAPIDocumentConfig = Parameters<
   OpenApiGeneratorV3["generateDocument"]
 >[0];
 
+export type OpenAPIDocumentConfigV31 = Parameters<
+  OpenApiGeneratorV31["generateDocument"]
+>[0];
+
 export type OpenAPIDocument = ReturnType<
   OpenApiGeneratorV3["generateDocument"]
 >;
 
-export interface OpenAPIFactory {
-  with(callback: (registry: OpenAPIRegistry) => void): OpenAPIFactory;
-  generate(config: OpenAPIDocumentConfig): OpenAPIDocument;
-}
+export type OpenAPIDocumentV31 = ReturnType<
+  OpenApiGeneratorV31["generateDocument"]
+>;
 
 // Request handler
 

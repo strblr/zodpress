@@ -48,11 +48,12 @@
   - [Custom schema fields](#custom-schema-fields)
   - [Custom route fields](#custom-route-fields)
   - [Custom components](#custom-components)
-  - [Usage in frontend](#usage-in-frontend)
 - [Recipes](#recipes)
   - [Zod coercions](#zod-coercions)
   - [Non-JSON bodies](#non-json-bodies)
   - [Shared contracts](#shared-contracts)
+  - [External OpenAPI registry](#external-openapi-registry)
+  - [Generate frontend types](#generate-frontend-types)
 - [Roadmap](#roadmap)
 - [API reference](#api-reference)
   - [`zodpress`](#zodpress)
@@ -147,7 +148,7 @@ curl localhost:3000/todo -H "Content-Type: application/json" -d '{ "title": 42 }
 
 ```json
 {
-  "type": "validation_error",
+  "name": "ValidationError",
   "bodyErrors": [
     {
       "code": "invalid_type",
@@ -165,7 +166,7 @@ curl localhost:3000/todo -H "Content-Type: application/json" -d '{ "title": 42 }
 Zodpress can generate an OpenAPI document from your contract. You're then free to serve it any way you want. It's also fully customizable if you need special OpenAPI fields, custom components, security schemes, etc. More on that in the docs. Below is a simple example featuring [swagger-ui-express](https://www.npmjs.com/package/swagger-ui-express):
 
 ```ts
-const openApiDocument = app.z.openapi().generate({
+const openApiDocument = app.z.openapi.generate({
   openapi: "3.0.0",
   info: {
     version: "1.0.0",
@@ -503,7 +504,7 @@ If all the routes in your contract share common responses, you can define them i
 ```ts
 const app = zodpress({
   commonResponses: {
-    404: z.literal("Not found")
+    500: z.literal("Internal error")
   },
   get: {
     "/todos/:id": {
@@ -515,7 +516,7 @@ const app = zodpress({
 });
 
 app.z.get("/todos/:id", (req, res) => {
-  res.status(404).send("Not found"); // Ok
+  res.status(500).send("Internal error"); // Ok
   res.status(200).send({ id: "1", title: "Todo" }); // Ok
 });
 ```
@@ -574,7 +575,83 @@ app.use((err, req, res, next) => {
 
 ## OpenAPI
 
-(Coming soon)
+### Generating documents
+
+By defining your API contract, you can easily generate OpenAPI-compliant documentation without duplicating your source of truth. This means your contract serves as a single, consistent definition for static type-safety, runtime validation, and documentation. Under the hood, Zodpress uses [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi) to generate OpenAPI documents from your Zod schemas and other contract properties. This process is fully customizable.
+
+The OpenAPI functionalities are accessible via the `z.openapi` property on apps and routers. Call `z.openapi.generate` to generate an OpenAPI 3.0 document:
+
+```ts
+const app = zodpress({
+  get: {
+    "/todos/:id": {
+      summary: "Get a todo",
+      description: "Get a todo by its ID",
+      responses: {
+        200: z.object({ id: z.string(), title: z.string() })
+      }
+    }
+  }
+});
+
+const document = app.z.openapi.generate({
+  openapi: "3.0.0",
+  info: {
+    title: "My API",
+    version: "2.0.0"
+  }
+});
+```
+
+This will output the following:
+
+```json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "My API",
+    "version": "2.0.0"
+  },
+  "components": {
+    "schemas": {},
+    "parameters": {}
+  },
+  "paths": {
+    "/todos/{id}": {
+      "get": {
+        "summary": "Get a todo",
+        "description": "Get a todo by its ID",
+        "tags": [],
+        "parameters": [
+          {
+            "schema": { "type": "string" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["id", "title"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "title": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 ## Recipes
 
@@ -582,7 +659,6 @@ app.use((err, req, res, next) => {
 
 ## Roadmap
 
-- Support for OpenAPI 3.1
 - Support for common headers (similar to `commonResponses`)
 - Support for content-type header validation using `zodSchema.contentType()` metadata [maybe]
 - Automatically document response code 400 in OpenAPI documents for validated routes
@@ -631,23 +707,23 @@ Each route config accepts:
 
 The `z` property is available on Zodpress applications and routers.
 
-| Property/Method                                                         | Returns          | Description                                                                                                     |
-| ----------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------- |
-| `contract`                                                              | `Contract`       | The contract bound to this router/app                                                                           |
-| `openapi(options?: OpenAPIRegisterOptions)`                             | `OpenAPIFactory` | Creates an OpenAPI factory for generating documentation. Options can include a `pathPrefix` string.             |
-| `register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions)` | `void`           | Registers this router/app's routes with a provided OpenAPI registry. Options can include a `pathPrefix` string. |
-| `get(path, ...handlers)`                                                | `this`           | Adds GET route handlers with full type safety based on contract                                                 |
-| `post(path, ...handlers)`                                               | `this`           | Adds POST route handlers with full type safety based on contract                                                |
-| `put(path, ...handlers)`                                                | `this`           | Adds PUT route handlers with full type safety based on contract                                                 |
-| `patch(path, ...handlers)`                                              | `this`           | Adds PATCH route handlers with full type safety based on contract                                               |
-| `delete(path, ...handlers)`                                             | `this`           | Adds DELETE route handlers with full type safety based on contract                                              |
+| Property/Method             | Returns           | Description                                                          |
+| --------------------------- | ----------------- | -------------------------------------------------------------------- |
+| `contract`                  | `Contract`        | The contract bound to this router/app                                |
+| `openapi`                   | `ZodpressOpenAPI` | Registers this router/app's routes with a provided OpenAPI registry. |
+| `get(path, ...handlers)`    | `this`            | Adds GET route handlers with full type safety based on contract      |
+| `post(path, ...handlers)`   | `this`            | Adds POST route handlers with full type safety based on contract     |
+| `put(path, ...handlers)`    | `this`            | Adds PUT route handlers with full type safety based on contract      |
+| `patch(path, ...handlers)`  | `this`            | Adds PATCH route handlers with full type safety based on contract    |
+| `delete(path, ...handlers)` | `this`            | Adds DELETE route handlers with full type safety based on contract   |
 
-The `OpenAPIFactory` provides methods for customizing and generating OpenAPI documents:
+The `ZodpressOpenAPI` interface provides the following methods:
 
-| Method                                                | Returns           | Description                                                                                                                                                                                                                                                     |
-| ----------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `with(callback: (registry: OpenAPIRegistry) => void)` | `this`            | Allows modifying the OpenAPI registry directly through a callback function. See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#the-registry).                                                                             |
-| `generate(config: OpenAPIDocumentConfig)`             | `OpenAPIDocument` | Generates the final OpenAPI JSON document. The config parameter accepts standard OpenAPI 3.0 document fields (`info`, `servers`, etc.). See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#generating-the-full-document). |
+| Method                                                                            | Returns              | Description                                                                                                                                                                                                                                             |
+| --------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions)`           | `void`               | Registers this router/app's routes with a provided OpenAPI registry.                                                                                                                                                                                    |
+| `generate(config: OpenAPIDocumentConfig, options?: OpenAPIRegisterOptions)`       | `OpenAPIDocument`    | Generates an OpenAPI 3.0 document. The config parameter accepts standard OpenAPI 3.0 document fields (`info`, `servers`, etc.). See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#generating-the-full-document). |
+| `generateV31(config: OpenAPIDocumentConfigV31, options?: OpenAPIRegisterOptions)` | `OpenAPIDocumentV31` | Generates an OpenAPI 3.1 document                                                                                                                                                                                                                       |
 
 ### `ValidationError`
 

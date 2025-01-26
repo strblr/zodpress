@@ -153,15 +153,18 @@ export function demo1() {
     res.sendStatus(201);
   });
 
-  const openApiDocument = app.z.openapi({ pathPrefix: "/api/v2" }).generate({
-    openapi: "3.0.0",
-    info: {
-      version: "2.0.0",
-      title: "My API",
-      description: "This is the API"
+  const openApiDocument = app.z.openapi.generate(
+    {
+      openapi: "3.0.0",
+      info: {
+        version: "2.0.0",
+        title: "My API",
+        description: "This is the API"
+      },
+      servers: [{ url: "http://localhost:3000" }]
     },
-    servers: [{ url: "http://localhost:3000" }]
-  });
+    { pathPrefix: "/api/v2" }
+  );
 
   app.use("/docs", swagger.serve, swagger.setup(openApiDocument));
 
@@ -177,35 +180,23 @@ export function demo1() {
 
 export function demo2() {
   const app = zodpress({
-    post: {
+    get: {
       "/todos/:id": {
-        body: z.instanceof(Buffer).contentType("application/octet-stream"),
+        summary: "Get a todo",
+        description: "Get a todo by its ID",
         responses: {
-          204: z.void()
+          200: z.object({ id: z.string(), title: z.string() })
         }
       }
     }
   });
 
-  app.use(express.raw());
-
-  app.z.post("/todos/:id", (req, res) => {
-    console.log({
-      body: req.body,
-      isBuffer: req.body instanceof Buffer,
-      contentType: req.get("content-type")
-    });
-    res.status(204).send();
-  });
-
-  const document = app.z.openapi().generate({
+  const document = app.z.openapi.generate({
     openapi: "3.0.0",
     info: {
-      version: "2.0.0",
       title: "My API",
-      description: "This is the API"
-    },
-    servers: [{ url: "http://localhost:3000" }]
+      version: "2.0.0"
+    }
   });
 
   app.use("/docs", swagger.serve, swagger.setup(document));
