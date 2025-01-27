@@ -41,12 +41,10 @@
   - [Validation errors](#validation-errors)
 - [OpenAPI](#openapi)
   - [Generating documents](#generating-documents)
-  - [Descriptions](#descriptions)
-  - [Tags](#tags)
+  - [Contract metadata](#contract-metadata)
   - [Content types](#content-types)
   - [Nested routers](#nested-routers)
-  - [Custom schema fields](#custom-schema-fields)
-  - [Custom route fields](#custom-route-fields)
+  - [Customize Zod schemas](#customize-zod-schemas)
   - [Custom components](#custom-components)
 - [Recipes](#recipes)
   - [Zod coercions](#zod-coercions)
@@ -651,6 +649,44 @@ This will output the following:
     }
   }
 }
+```
+
+### Contract metadata
+
+Contract route configs can take the following metadata used solely for OpenAPI generation:
+
+- `summary`: Short summary of what the route does.
+- `description`: Detailed description of the route.
+- `deprecated`: Marks a route as deprecated. Also available on common config to mark all routes in the contract as deprecated.
+- `tags`: String or string array. OpenAPI tags for this route. Also available on common config to tag all routes in the contract. If defined both on a route and common config, the tags are merged for the route.
+
+```ts
+const app = zodpress({
+  deprecated: true,
+  tags: ["todos"],
+  get: {
+    "/todos/:id": {
+      summary: "Get a todo",
+      description: "Get a todo by its ID",
+      deprecated: false, // Takes precedence
+      tags: ["read"] // Merged with ["todos"]
+    }
+  }
+});
+```
+
+OpenAPI allows for more metadata to be added to routes. While Zodpress offers first-class support for the ones listed above, it is possible to add or customize any OpenAPI operation field using the `openapi` property. Anything defined in there will take precedence in case of conflict.
+
+```ts
+const app = zodpress({
+  get: {
+    "/todos/:id": {
+      openapi: {
+        security: [{ apiKey: [] }]
+      }
+    }
+  }
+});
 ```
 
 ## Recipes
