@@ -63,7 +63,6 @@ function extend<Contract extends AnyContract>(
   const prepareDefinitions = (options?: OpenAPIRegisterOptions) => {
     const registry = new OpenAPIRegistry();
     router.z.openapi.register(registry, options);
-    options?.with?.(registry);
     return registry.definitions;
   };
 
@@ -98,6 +97,7 @@ function extend<Contract extends AnyContract>(
             });
           }
         }
+        options?.with?.(registry);
       },
       generate(config, options) {
         return new OpenApiGeneratorV3(
