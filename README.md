@@ -42,14 +42,11 @@
 - [OpenAPI](#openapi)
   - [Generating documents](#generating-documents)
   - [Contract metadata](#contract-metadata)
-  - [Content types](#content-types)
   - [Nested routers](#nested-routers)
+  - [Content types](#content-types)
   - [Customize Zod schemas](#customize-zod-schemas)
   - [Custom components](#custom-components)
 - [Recipes](#recipes)
-  - [Zod coercions](#zod-coercions)
-  - [Non-JSON bodies](#non-json-bodies)
-  - [Shared contracts](#shared-contracts)
   - [External OpenAPI registry](#external-openapi-registry)
   - [Generate frontend types](#generate-frontend-types)
 - [Roadmap](#roadmap)
@@ -75,7 +72,7 @@ npm install zodpress express zod @asteasolutions/zod-to-openapi
 
 Zodpress ([zod](https://zod.dev/) + [express](https://expressjs.com/)) brings four key features to the table:
 
-1. **Strongly typed Express** - Define an API contract and get strongly typed request handlers. If typescript is happy, your API will be happy.
+1. **Strongly typed Express** - Define an API contract and get strongly typed request handlers. If TypeScript is happy, your API will be happy.
 2. **Request validation** - Zodpress validates requests against your contract using Zod. Support for headers, path params, query params, and body validation.
 3. **OpenAPI support** - Generate an OpenAPI document directly from your contracts, without duplicating your source of truth.
 4. **Incremental adoption** - Zodpress is fully compatible with regular Express. Zodpress apps and routers are just Express apps and routers with a `z` property.
@@ -84,7 +81,7 @@ Let's also add that it's extremely tiny (2kb gzipped) and has 100% test coverage
 
 ### Strongly typed Express
 
-The cornerstone of Zodpress is a contract. In in, you define your endpoints, methods, request and response schemas, as well as other metadata like tags, summary, etc.
+The cornerstone of Zodpress is a contract. In it, you define your endpoints, methods, request and response schemas, as well as other metadata like tags, summary, etc.
 
 ```ts
 import { zodpress } from "zodpress";
@@ -181,7 +178,7 @@ app.get("/openapi.json", (_, res) => {
 
 ### Incremental adoption
 
-Zodpress is fully compatible with regular Express, because it is just regular Express with an extra `z` property. So regular `use`, `get`, `post`, `http.createServer(app)`, and everything you can imagine will work as expected. Zodpress-specific features live under the `z` property of apps and routers. Converting a regular Express app just means swapping `express()` for `zodpress(contract)` and gradually migrating your routes under `z` or keeping a coexistence of both.
+Zodpress is fully compatible with regular Express, because it is just regular Express with an extra `z` property. So regular `use`, `get`, `post`, `http.createServer(app)`, and everything you can imagine will work as expected. Zodpress-specific features live under the `z` property of apps and routers. Converting a regular Express app simply involves replacing `express()` with `zodpress(contract)` and then gradually moving your routes to the `z` property—while still allowing regular Express routes to coexist.
 
 ```ts
 const app = zodpress(contract);
@@ -367,7 +364,7 @@ app.use(todoRouter);
 
 ### Headers
 
-To validate request headers, use the `headers` property of route configs in your contract. The schema has to be a Zod object. Since headers often contain many fields, most of which of lesser importance, validated headers are shallowly merged with existing ones to preserve runtime access to undeclared headers. This also means that it wouldn't make sense to use [`strict` object schemas](https://zod.dev/?id=strict) here unless you have a good reason.
+To validate request headers, use the `headers` property of route configs in your contract. The schema has to be a Zod object. Since headers often contain many fields (most of which aren’t critical), the validated headers are shallowly merged with the original ones. This ensures that any headers not defined in the schema remain accessible at runtime. This also means that it wouldn't make sense to use [`strict` object schemas](https://zod.dev/?id=strict) here unless you have a good reason.
 
 ```ts
 const app = zodpress({
@@ -669,13 +666,13 @@ const app = zodpress({
       summary: "Get a todo",
       description: "Get a todo by its ID",
       deprecated: false, // Takes precedence
-      tags: ["read"] // Merged with ["todos"]
+      tags: ["read"] // Final tags: ["todos", "read"]
     }
   }
 });
 ```
 
-OpenAPI allows for more metadata to be added to routes. While Zodpress offers first-class support for the ones listed above, it is possible to add or customize any OpenAPI operation field using the `openapi` property. Anything defined in there will take precedence in case of conflict.
+OpenAPI allows for more metadata to be added to routes. While Zodpress offers first-class support for the ones listed above, it is possible to add or customize any [OpenAPI operation field](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#defining-routes--webhooks) using the `openapi` property. Anything defined in there will take precedence in case of conflict.
 
 ```ts
 const app = zodpress({
@@ -689,9 +686,218 @@ const app = zodpress({
 });
 ```
 
+Zodpress will also use Zod's built-in description (see [`describe` method](https://zod.dev/?id=describe)) to optionally add descriptions to request and response bodies.
+
+```ts
+const app = zodpress({
+  post: {
+    "/todos": {
+      body: z.object({ title: z.string() }).describe("The todo to create")
+    }
+  }
+});
+```
+
+### Nested routers
+
+When nesting routers, Zodpress will automatically understand how to prefix the paths of the nested routes:
+
+```ts
+const app = zodpress({
+  get: {
+    "/health": {
+      summary: "Check the health of the API"
+    }
+  }
+});
+
+const router = zodpress.Router({
+  get: {
+    "/todo": {
+      summary: "Get a todo"
+    }
+  }
+});
+
+app.use("/api", router);
+
+const document = app.z.openapi.generate({
+  openapi: "3.0.0",
+  info: {
+    title: "My API",
+    version: "2.0.0"
+  }
+});
+```
+
+This will generate an OpenAPI document looking like this:
+
+```
+{
+  ...
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Check the health of the API",
+        ...
+      }
+    },
+    "/api/todo": {
+      "get": {
+        "summary": "Get a todo",
+        ...
+      }
+    }
+  }
+}
+```
+
+However, when attaching a Zodpress router to a regular Express app, Zodpress has no way to know the base path of the router. To solve this, you can pass a second argument to `z.openapi.generate` containing a `pathPrefix` property.
+
+```ts
+const app = express();
+
+const router = zodpress.Router({
+  get: {
+    "/todo": {
+      summary: "Get a todo"
+    }
+  }
+});
+
+app.use("/api", router);
+
+const document = router.z.openapi.generate(
+  {
+    openapi: "3.0.0",
+    info: {
+      title: "My API",
+      version: "2.0.0"
+    }
+  },
+  { pathPrefix: "/api" }
+);
+```
+
+### Content types
+
+Request and response content types can be explicitly specified. To do this, extend Zod with the built-in extension:
+
+```ts
+import { z } from "zod";
+import { extendZodWithZodpress } from "zodpress";
+
+extendZodWithZodpress(z);
+```
+
+You can now use the `contentType` method on Zod schemas. This will not affect runtime validation (although it might in the future), but will be used to generate accurate OpenAPI documents.
+
+```ts
+const app = zodpress({
+  post: {
+    "/file-to-text": {
+      body: z.instanceof(Buffer).contentType("application/octet-stream"),
+      responses: {
+        200: z.string().contentType("text/plain")
+      }
+    }
+  }
+});
+
+app.use(express.raw());
+```
+
+### Customize Zod schemas
+
+By extending Zod with [@asteasolutions/zod-to-openapi's extension](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#the-openapi-method), you can use the `openapi` method on Zod schemas to customize their OpenAPI representation. This is useful for adding descriptions, examples or extracting schemas into OpenAPI components to be reused in multiple routes.
+
+```ts
+import { z } from "zod";
+import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+
+extendZodWithOpenApi(z);
+
+const todoSchema = z
+  .object({
+    id: z.string(),
+    title: z.string()
+  })
+  .openapi("Todo", {
+    example: { id: "1", title: "Todo 1" }
+  });
+
+const app = zodpress({
+  get: {
+    "/todos/:id": {
+      responses: {
+        200: todoSchema
+      }
+    }
+  }
+});
+```
+
+If you want to use both the `openapi` and the `contentType` methods, you can import `z` from `zodpress/zod`. All it does is extend Zod with both the zod-to-openapi and Zodpress extensions.
+
+```ts
+import { z } from "zodpress/zod";
+```
+
+### Custom components
+
+To add custom OpenAPI components like security schemes, pass a second argument to `z.openapi.generate` with a `with` callback. The callback receives a [registry](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#the-registry) parameter that lets you register components like schemas, parameters, links, security schemes and more.
+
+```ts
+const app = zodpress({
+  get: {
+    "/todo": {
+      summary: "Get a todo",
+      openapi: {
+        security: [{ "x-api-key": [] }]
+      }
+    }
+  }
+});
+
+const document = app.z.openapi.generate(
+  {
+    openapi: "3.0.0",
+    info: {
+      title: "My API",
+      version: "2.0.0"
+    }
+  },
+  {
+    with: registry => {
+      registry.registerComponent("securitySchemes", "x-api-key", {
+        type: "apiKey",
+        in: "header",
+        name: "x-api-key"
+      });
+    }
+  }
+);
+```
+
 ## Recipes
 
-(Coming soon)
+### External OpenAPI registry
+
+If you are already using [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi) outside of Zodpress, you might not want Zodpress to handle the OpenAPI generation directly. In this case, you can use the `z.openapi.register` method to register the routes with an existing OpenAPI registry and manually generate the document later.
+
+```ts
+const app = zodpress({});
+const registry = new OpenAPIRegistry();
+app.z.openapi.register(registry);
+```
+
+### Generate frontend types
+
+To generate frontend types from your contract, generate the OpenAPI document and use available tools to convert it to TypeScript types. Here is a non-exhaustive list of tools you can use:
+
+- [OpenAPI TypeScript](https://openapi-ts.dev/)
+- [Hey API](https://heyapi.dev/)
+- [openapi-typescript-codegen](https://github.com/ferdikoomen/openapi-typescript-codegen)
 
 ## Roadmap
 
@@ -743,35 +949,42 @@ Each route config accepts:
 
 The `z` property is available on Zodpress applications and routers.
 
-| Property/Method             | Returns           | Description                                                          |
-| --------------------------- | ----------------- | -------------------------------------------------------------------- |
-| `contract`                  | `Contract`        | The contract bound to this router/app                                |
-| `openapi`                   | `ZodpressOpenAPI` | Registers this router/app's routes with a provided OpenAPI registry. |
-| `get(path, ...handlers)`    | `this`            | Adds GET route handlers with full type safety based on contract      |
-| `post(path, ...handlers)`   | `this`            | Adds POST route handlers with full type safety based on contract     |
-| `put(path, ...handlers)`    | `this`            | Adds PUT route handlers with full type safety based on contract      |
-| `patch(path, ...handlers)`  | `this`            | Adds PATCH route handlers with full type safety based on contract    |
-| `delete(path, ...handlers)` | `this`            | Adds DELETE route handlers with full type safety based on contract   |
+| Property/Method             | Returns           | Description                                                        |
+| --------------------------- | ----------------- | ------------------------------------------------------------------ |
+| `contract`                  | `Contract`        | The contract bound to this router/app                              |
+| `openapi`                   | `ZodpressOpenAPI` | The OpenAPI generator for this router/app                          |
+| `get(path, ...handlers)`    | `this`            | Adds GET route handlers with full type safety based on contract    |
+| `post(path, ...handlers)`   | `this`            | Adds POST route handlers with full type safety based on contract   |
+| `put(path, ...handlers)`    | `this`            | Adds PUT route handlers with full type safety based on contract    |
+| `patch(path, ...handlers)`  | `this`            | Adds PATCH route handlers with full type safety based on contract  |
+| `delete(path, ...handlers)` | `this`            | Adds DELETE route handlers with full type safety based on contract |
 
 The `ZodpressOpenAPI` interface provides the following methods:
 
 | Method                                                                            | Returns              | Description                                                                                                                                                                                                                                             |
 | --------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions)`           | `void`               | Registers this router/app's routes with a provided OpenAPI registry.                                                                                                                                                                                    |
+| `register(registry: OpenAPIRegistry, options?: OpenAPIRegisterOptions)`           | `void`               | Registers this router/app's routes with a provided OpenAPI registry                                                                                                                                                                                     |
 | `generate(config: OpenAPIDocumentConfig, options?: OpenAPIRegisterOptions)`       | `OpenAPIDocument`    | Generates an OpenAPI 3.0 document. The config parameter accepts standard OpenAPI 3.0 document fields (`info`, `servers`, etc.). See [zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi?tab=readme-ov-file#generating-the-full-document). |
 | `generateV31(config: OpenAPIDocumentConfigV31, options?: OpenAPIRegisterOptions)` | `OpenAPIDocumentV31` | Generates an OpenAPI 3.1 document                                                                                                                                                                                                                       |
+
+The `OpenAPIRegisterOptions` interface accepts the following properties:
+
+| Property          | Type       | Description                                               |
+| ----------------- | ---------- | --------------------------------------------------------- |
+| `pathPrefix?`     | `string`   | Prefix all paths with this string                         |
+| `with?(registry)` | `Function` | Callback to interact with the underlying OpenAPI registry |
 
 ### `ValidationError`
 
 The `ValidationError` class extends the standard `Error` class and is used to represent validation errors.
 
-| Method           | Returns      | Description                                    |
-| ---------------- | ------------ | ---------------------------------------------- |
-| `isEmpty()`      | `boolean`    | Returns true if it doesn't contain any errors. |
-| `headersErrors?` | `ZodIssue[]` | Array of validation errors for headers         |
-| `paramsErrors?`  | `ZodIssue[]` | Array of validation errors for path params     |
-| `queryErrors?`   | `ZodIssue[]` | Array of validation errors for query params    |
-| `bodyErrors?`    | `ZodIssue[]` | Array of validation errors for request body    |
+| Method           | Returns      | Description                                   |
+| ---------------- | ------------ | --------------------------------------------- |
+| `isEmpty()`      | `boolean`    | Returns true if it doesn't contain any errors |
+| `headersErrors?` | `ZodIssue[]` | Array of validation errors for headers        |
+| `paramsErrors?`  | `ZodIssue[]` | Array of validation errors for path params    |
+| `queryErrors?`   | `ZodIssue[]` | Array of validation errors for query params   |
+| `bodyErrors?`    | `ZodIssue[]` | Array of validation errors for request body   |
 
 ### Utilities
 

@@ -4,3 +4,4 @@ dist/__tests__
 coverage
 docs
 vitest.config.ts
+.vscode

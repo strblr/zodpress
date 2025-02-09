@@ -179,25 +179,28 @@ export function demo1() {
 }
 
 export function demo2() {
-  const app = zodpress({
+  const app = express();
+
+  const router = zodpress.Router({
     get: {
-      "/todos/:id": {
-        summary: "Get a todo",
-        description: "Get a todo by its ID",
-        responses: {
-          200: z.object({ id: z.string(), title: z.string() })
-        }
+      "/todo": {
+        summary: "Get a todo"
       }
     }
   });
 
-  const document = app.z.openapi.generate({
-    openapi: "3.0.0",
-    info: {
-      title: "My API",
-      version: "2.0.0"
-    }
-  });
+  app.use("/api", router);
+
+  const document = router.z.openapi.generate(
+    {
+      openapi: "3.0.0",
+      info: {
+        title: "My API",
+        version: "2.0.0"
+      }
+    },
+    { pathPrefix: "/api" }
+  );
 
   app.use("/docs", swagger.serve, swagger.setup(document));
 
